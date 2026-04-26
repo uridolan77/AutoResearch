@@ -50,7 +50,22 @@ class ProposerClient:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         settings = get_settings()
         self.model = model or settings.proposer_model
-        self.client = anthropic.Anthropic(api_key=api_key or settings.anthropic_api_key)
+        self._anthropic_key = api_key or settings.anthropic_api_key
+        self._openai_key = settings.openai_api_key
+        self._anthropic_client: anthropic.Anthropic | None = None
+        self._openai_client: openai.OpenAI | None = None
+
+        if self._anthropic_key:
+            self._anthropic_client = anthropic.Anthropic(api_key=self._anthropic_key)
+        elif self._openai_key:
+            # Fallback: allow OpenAI-only environments to run the loop.
+            # If proposer_model is a Claude name, use the judge_model (OpenAI) instead.
+            if self.model.startswith("claude"):
+                self.model = settings.judge_model
+            self._openai_client = openai.OpenAI(api_key=self._openai_key)
+        else:
+            # Constructing the object is allowed, but complete() will fail with a clear message.
+            pass
 
     def complete(
         self,
@@ -59,21 +74,45 @@ class ProposerClient:
         max_output_tokens: int,
         temperature: float = 0.3,
     ) -> LLMResult:
-        resp = self.client.messages.create(
-            model=self.model,
-            system=system,
-            max_tokens=max_output_tokens,
-            temperature=temperature,
-            messages=[{"role": "user", "content": user}],
-        )
-        text = "".join(
-            block.text for block in resp.content if getattr(block, "type", None) == "text"
-        )
-        return LLMResult(
-            text=text,
-            input_tokens=resp.usage.input_tokens,
-            output_tokens=resp.usage.output_tokens,
-            model=self.model,
+        if self._anthropic_client is not None:
+            resp = self._anthropic_client.messages.create(
+                model=self.model,
+                system=system,
+                max_tokens=max_output_tokens,
+                temperature=temperature,
+                messages=[{"role": "user", "content": user}],
+            )
+            text = "".join(
+                block.text for block in resp.content if getattr(block, "type", None) == "text"
+            )
+            return LLMResult(
+                text=text,
+                input_tokens=resp.usage.input_tokens,
+                output_tokens=resp.usage.output_tokens,
+                model=self.model,
+            )
+
+        if self._openai_client is not None:
+            resp = self._openai_client.chat.completions.create(
+                model=self.model,
+                temperature=temperature,
+                max_tokens=max_output_tokens,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            text = resp.choices[0].message.content or ""
+            usage = resp.usage
+            return LLMResult(
+                text=text,
+                input_tokens=usage.prompt_tokens if usage else estimate_tokens(system + user),
+                output_tokens=usage.completion_tokens if usage else estimate_tokens(text),
+                model=self.model,
+            )
+
+        raise RuntimeError(
+            "No proposer API key configured. Set AR_ANTHROPIC_API_KEY or AR_OPENAI_API_KEY."
         )
 
 

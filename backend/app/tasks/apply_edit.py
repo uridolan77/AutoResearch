@@ -135,6 +135,8 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
                     "attempts": experiment.validation_attempts,
                 },
             )
+            # Advance the session: failed experiments should not wedge the loop.
+            celery_app.send_task("autoresearch.loop", args=[session_id])
             return short_circuit(ctx, f"validation failed after {experiment.validation_attempts} attempts")
 
         # ---- deduplication ------------------------------------------------
@@ -161,6 +163,8 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
                     "diff_hash": h,
                 },
             )
+            # Duplicate is a terminal outcome for this iteration; move on.
+            celery_app.send_task("autoresearch.loop", args=[session_id])
             return short_circuit(ctx, "duplicate diff")
 
         # ---- apply diff to a fresh experiment worktree -------------------
@@ -190,6 +194,7 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
                 "experiment_failed",
                 {"experiment_id": experiment.id, "stage": "git_apply", "reason": str(e)},
             )
+            celery_app.send_task("autoresearch.loop", args=[session_id])
             return short_circuit(ctx, f"git apply failed: {e}")
 
         experiment.parent_commit = parent_sha

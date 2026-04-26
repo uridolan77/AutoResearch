@@ -57,6 +57,7 @@ def run_experiment(self, ctx: dict[str, Any]) -> dict[str, Any]:
         if evaluator_row is None:
             experiment.status = ExperimentStatus.failed
             db.commit()
+            celery_app.send_task("autoresearch.loop", args=[session_id])
             return short_circuit(ctx, "evaluator row missing")
 
         # Decrypt secret refs at runtime; never logged, never persisted in plaintext.
@@ -70,6 +71,7 @@ def run_experiment(self, ctx: dict[str, Any]) -> dict[str, Any]:
                 "experiment_failed",
                 {"experiment_id": experiment_id, "stage": "secrets", "reason": str(e)},
             )
+            celery_app.send_task("autoresearch.loop", args=[session_id])
             return short_circuit(ctx, f"secrets: {e}")
 
         run = Run(
@@ -101,6 +103,7 @@ def run_experiment(self, ctx: dict[str, Any]) -> dict[str, Any]:
                 "experiment_failed",
                 {"experiment_id": experiment_id, "stage": "evaluator", "reason": str(e)},
             )
+            celery_app.send_task("autoresearch.loop", args=[session_id])
             return short_circuit(ctx, f"evaluator: {e}")
 
         stdout_path.write_text(result.stdout or "", encoding="utf-8")
@@ -129,13 +132,12 @@ def run_experiment(self, ctx: dict[str, Any]) -> dict[str, Any]:
 
 
 @celery_app.task(name="autoresearch.on_chain_error", bind=True)
-def on_chain_error(self, request, exc, traceback) -> None:
+def on_chain_error(self, ctx: dict[str, Any] | None = None, exc: object | None = None, tb: object | None = None) -> None:
     """link_error handler — marks the in-flight experiment failed on any
     unhandled exception in the chain. Re-enqueueing the loop is the
     responsibility of decide (Days 7-8); for now we just journal and mark.
     """
-    args = request.args or []
-    ctx = args[0] if args and isinstance(args[0], dict) else {}
+    ctx = ctx or {}
     session_id = ctx.get("session_id")
     experiment_id = ctx.get("experiment_id")
     if not (session_id and experiment_id):
@@ -159,7 +161,7 @@ def on_chain_error(self, request, exc, traceback) -> None:
             {
                 "experiment_id": experiment_id,
                 "stage": "chain_crash",
-                "reason": f"{type(exc).__name__}: {exc}",
+                "reason": f"{type(exc).__name__}: {exc}" if exc is not None else "unknown chain crash",
             },
         )
     finally:

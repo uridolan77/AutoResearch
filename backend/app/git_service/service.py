@@ -56,23 +56,29 @@ class GitService:
 
     def ensure_repo(self, repo_path: Path) -> None:
         repo_path = Path(repo_path)
+        repo_path.mkdir(parents=True, exist_ok=True)
         if not (repo_path / ".git").exists():
-            repo_path.mkdir(parents=True, exist_ok=True)
             _run(["init", "-b", "main"], cwd=repo_path)
-            # Required for first commit / for `git worktree add` to work cleanly
-            try:
+
+        # Ensure local identity exists so commits inside containers succeed.
+        try:
+            email = _run(["config", "--get", "user.email"], cwd=repo_path, check=False)
+            name = _run(["config", "--get", "user.name"], cwd=repo_path, check=False)
+            if not email:
                 _run(["config", "user.email", "autoresearch@localhost"], cwd=repo_path)
+            if not name:
                 _run(["config", "user.name", "autoresearch"], cwd=repo_path)
-            except GitError:
-                pass
-            # An empty repo can't host worktrees; create a root commit if none exist.
-            try:
-                _run(["rev-parse", "HEAD"], cwd=repo_path)
-            except GitError:
-                gitkeep = repo_path / ".autoresearch-init"
-                gitkeep.write_text("autoresearch session marker\n")
-                _run(["add", ".autoresearch-init"], cwd=repo_path)
-                _run(["commit", "-m", "autoresearch: initial commit"], cwd=repo_path)
+        except GitError:
+            pass
+
+        # An empty repo can't host worktrees; create a root commit if none exist.
+        try:
+            _run(["rev-parse", "HEAD"], cwd=repo_path)
+        except GitError:
+            gitkeep = repo_path / ".autoresearch-init"
+            gitkeep.write_text("autoresearch session marker\n")
+            _run(["add", ".autoresearch-init"], cwd=repo_path)
+            _run(["commit", "-m", "autoresearch: initial commit"], cwd=repo_path)
 
     def head_sha(self, repo_path: Path) -> str:
         return _run(["rev-parse", "HEAD"], cwd=Path(repo_path))
