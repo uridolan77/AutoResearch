@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import get_settings
 
@@ -19,13 +20,19 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
-    # Auto-discover tasks in app.tasks.* (Days 4-6 chain + Days 7-8 decide/loop).
     imports=(
         "app.tasks.plan",
         "app.tasks.apply_edit",
         "app.tasks.run_experiment",
         "app.tasks.score",
+        "app.tasks.decide",
+        "app.tasks.loop",
+        "app.tasks.stale_reviews",
     ),
+    beat_schedule={
+        "stale-reviews-hourly": {
+            "task": "autoresearch.stale_reviews",
+            "schedule": crontab(minute=0),
+        },
+    },
 )
-
-# Beat schedule for stale-review scan is registered in Days 7-8.
