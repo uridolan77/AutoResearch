@@ -7,15 +7,15 @@ session and per-iteration token caps before re-entry.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
-import anthropic
-import openai
 try:
     import tiktoken  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
     tiktoken = None  # type: ignore
 
 from app.core.config import get_settings
+from app.llm import make_router
 
 
 @dataclass
@@ -44,28 +44,18 @@ def estimate_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     return len(enc.encode(text))
 
 
+@lru_cache
+def _router():
+    return make_router()
+
+
 class ProposerClient:
     """Claude Sonnet 4.5 — strongest code + prose editor at tolerable cost."""
 
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         settings = get_settings()
         self.model = model or settings.proposer_model
-        self._anthropic_key = api_key or settings.anthropic_api_key
-        self._openai_key = settings.openai_api_key
-        self._anthropic_client: anthropic.Anthropic | None = None
-        self._openai_client: openai.OpenAI | None = None
-
-        if self._anthropic_key:
-            self._anthropic_client = anthropic.Anthropic(api_key=self._anthropic_key)
-        elif self._openai_key:
-            # Fallback: allow OpenAI-only environments to run the loop.
-            # If proposer_model is a Claude name, use the judge_model (OpenAI) instead.
-            if self.model.startswith("claude"):
-                self.model = settings.judge_model
-            self._openai_client = openai.OpenAI(api_key=self._openai_key)
-        else:
-            # Constructing the object is allowed, but complete() will fail with a clear message.
-            pass
+        self._api_key = api_key
 
     def complete(
         self,
@@ -74,45 +64,18 @@ class ProposerClient:
         max_output_tokens: int,
         temperature: float = 0.3,
     ) -> LLMResult:
-        if self._anthropic_client is not None:
-            resp = self._anthropic_client.messages.create(
-                model=self.model,
-                system=system,
-                max_tokens=max_output_tokens,
-                temperature=temperature,
-                messages=[{"role": "user", "content": user}],
-            )
-            text = "".join(
-                block.text for block in resp.content if getattr(block, "type", None) == "text"
-            )
-            return LLMResult(
-                text=text,
-                input_tokens=resp.usage.input_tokens,
-                output_tokens=resp.usage.output_tokens,
-                model=self.model,
-            )
-
-        if self._openai_client is not None:
-            resp = self._openai_client.chat.completions.create(
-                model=self.model,
-                temperature=temperature,
-                max_tokens=max_output_tokens,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            )
-            text = resp.choices[0].message.content or ""
-            usage = resp.usage
-            return LLMResult(
-                text=text,
-                input_tokens=usage.prompt_tokens if usage else estimate_tokens(system + user),
-                output_tokens=usage.completion_tokens if usage else estimate_tokens(text),
-                model=self.model,
-            )
-
-        raise RuntimeError(
-            "No proposer API key configured. Set AR_ANTHROPIC_API_KEY or AR_OPENAI_API_KEY."
+        _ = temperature  # stage config owns temperature in router; keep signature stable
+        result = _router().call(
+            "autoresearch_proposer",
+            system,
+            user,
+            max_tokens=max_output_tokens,
+        )
+        return LLMResult(
+            text=result.content,
+            input_tokens=result.input_tokens or estimate_tokens(system + user, model=result.model),
+            output_tokens=result.output_tokens or estimate_tokens(result.content, model=result.model),
+            model=result.model,
         )
 
 
@@ -122,7 +85,7 @@ class JudgeClient:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         settings = get_settings()
         self.model = model or settings.judge_model
-        self.client = openai.OpenAI(api_key=api_key or settings.openai_api_key)
+        self._api_key = api_key
 
     def complete(
         self,
@@ -131,20 +94,16 @@ class JudgeClient:
         max_output_tokens: int,
         temperature: float = 0.0,
     ) -> LLMResult:
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            temperature=temperature,
+        _ = temperature  # stage config owns temperature in router; keep signature stable
+        result = _router().call(
+            "autoresearch_judge",
+            system,
+            user,
             max_tokens=max_output_tokens,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
         )
-        text = resp.choices[0].message.content or ""
-        usage = resp.usage
         return LLMResult(
-            text=text,
-            input_tokens=usage.prompt_tokens if usage else estimate_tokens(system + user),
-            output_tokens=usage.completion_tokens if usage else estimate_tokens(text),
-            model=self.model,
+            text=result.content,
+            input_tokens=result.input_tokens or estimate_tokens(system + user, model=result.model),
+            output_tokens=result.output_tokens or estimate_tokens(result.content, model=result.model),
+            model=result.model,
         )

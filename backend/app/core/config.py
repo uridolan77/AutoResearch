@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 
 
 class Settings(BaseSettings):
@@ -15,6 +16,8 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+
+    llm_provider: Literal["anthropic", "openai"] = "anthropic"
 
     proposer_model: str = "claude-sonnet-4-5"
     judge_model: str = "gpt-4o-mini"
