@@ -19,7 +19,13 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    # Auto-discover tasks in app.tasks.* (Days 4-6 chain + Days 7-8 decide/loop).
+    imports=(
+        "app.tasks.plan",
+        "app.tasks.apply_edit",
+        "app.tasks.run_experiment",
+        "app.tasks.score",
+    ),
 )
 
-# Tasks will be registered in Days 4-8 (plan, apply_edit, run_experiment, score, decide, loop).
-# Beat schedule for stale-review scan registered in Days 7-8.
+# Beat schedule for stale-review scan is registered in Days 7-8.
