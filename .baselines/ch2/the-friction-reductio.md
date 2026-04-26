@@ -1,0 +1,6 @@
+### **The Friction Reductio**
+
+On the flat-physicalist reading, the piston is *merely* epistemic \- a macroscopic object whose apparent solidity is nothing over and above the microstate of its constituent atoms, and whose friction could in principle be removed by redescribing the system at the micro-level. If the macroscopic description adds nothing ontologically, then friction \- a macroscopic property of the piston \- should be eliminable by micro-redescription. But friction tracks measurable entropy production, bounded below by Landauer's floor for the informational content the constraint maintains. Removing friction from the description does not remove it from the bath. The heat is still there. The entropy is still produced. The piston's macroscopic description is not merely epistemic.
+
+Even a perfectly lubricated piston still dissipates *k*\_B *T* ln 2 per bit at the Landauer floor. The friction is not optional \- it is the physical pushback of a macroscopic constraint-architecture against the dynamics it channels. What holds for the piston holds for any constraint whose maintenance involves constitutive dissipation: membrane potential, enzymatic catalysis, pointer-state separation. Non-optional dissipation is the ontological grip of macroscopic structure.
+

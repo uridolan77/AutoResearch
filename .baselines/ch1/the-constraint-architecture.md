@@ -1,0 +1,4 @@
+### **The Constraint-Architecture**
+
+A constraint-architecture seals boundaries \- the cell membrane's lipid bilayer holding distinct chemical environments apart, the vesicle wall concentrating reactants against diffusion. It steers flows \- ion channels directing Na⁺ and K⁺ along electrochemical gradients, enzymatic cascades routing metabolic intermediates to specific reaction sites. It repairs damage \- receptor proteins resynthesised after binding events, cytoskeletal filaments rebuilt after mechanical stress, membrane integrity restored after perturbation. Sealing, steering, repairing: each is a thermodynamic operation with a measurable cost. The burn rate is the aggregate price of these three operations, running continuously, and it is what the cessation signature enumerates when the funding stops \- the cessation-test (below) operationalises this enumeration.
+
