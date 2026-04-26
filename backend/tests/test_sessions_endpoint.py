@@ -78,3 +78,57 @@ def test_patch_program_updates_program_md(db_factory) -> None:
     assert r.status_code == 200
     assert r.json()["program_md"] == "new"
 
+
+def test_list_session_experiments_supports_filters(db_factory) -> None:
+    Sm = db_factory
+    from tests.conftest import make_experiment, make_session
+    from app.models.enums import Decision, ExperimentStatus
+
+    db = Sm()
+    s = make_session(db)
+    make_experiment(
+        db,
+        s,
+        iteration=1,
+        status=ExperimentStatus.reverted,
+        score_delta=-0.5,
+        decision=Decision.rejected,
+    )
+    kept = make_experiment(
+        db,
+        s,
+        iteration=2,
+        status=ExperimentStatus.kept,
+        score_delta=1.25,
+        decision=Decision.approved,
+    )
+    kept.kept = True
+    db.commit()
+    kept_id = kept.id
+    session_id = s.id
+    db.close()
+
+    for client in _client(Sm):
+        r = client.get(f"/sessions/{session_id}/experiments", params={"kept": True, "delta_min": 0.5})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body) == 1
+    assert body[0]["id"] == kept_id
+    assert body[0]["decision"] == "approved"
+
+
+def test_list_session_experiments_rejects_invalid_status(db_factory) -> None:
+    Sm = db_factory
+    from tests.conftest import make_session
+
+    db = Sm()
+    s = make_session(db)
+    session_id = s.id
+    db.close()
+
+    for client in _client(Sm):
+        r = client.get(f"/sessions/{session_id}/experiments", params={"status": "bogus"})
+
+    assert r.status_code == 422
+

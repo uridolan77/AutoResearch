@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from tests.conftest import make_experiment, make_session
 
-from app.models import Experiment
+from app.models import Experiment, Run
 from app.models.enums import Decision, ExperimentStatus
 
 
@@ -144,3 +144,47 @@ def test_skip_endpoint_marks_auto_rejected_timeout(db_factory) -> None:
     assert refreshed.decision == Decision.auto_rejected_timeout
     assert refreshed.rejection_comment == "manually skipped"
     send_task.assert_called_once_with("autoresearch.decide", args=[exp.id])
+
+
+def test_get_experiment_detail_returns_runs_and_rejection_history(db_factory) -> None:
+    Sm = db_factory
+    db = Sm()
+    s = make_session(db)
+    old_rejected = make_experiment(
+        db,
+        s,
+        iteration=1,
+        status=ExperimentStatus.reverted,
+        decision=Decision.rejected,
+        rejection_comment="avoid broad rewrite",
+    )
+    exp = make_experiment(
+        db,
+        s,
+        iteration=2,
+        status=ExperimentStatus.awaiting_review,
+        score_before=0.1,
+        score_after=0.5,
+        score_delta=0.4,
+    )
+    run = Run(
+        experiment_id=exp.id,
+        worker_id="worker-1",
+        stdout_path="/tmp/stdout.log",
+        stderr_path="/tmp/stderr.log",
+        metric_payload={"score": 0.5},
+        exit_code=0,
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(exp)
+
+    for client in _client(Sm):
+        r = client.get(f"/experiments/{exp.id}")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == exp.id
+    assert body["runs"][0]["stdout_path"] == "/tmp/stdout.log"
+    assert body["rejection_history"][0]["id"] == exp.id or body["rejection_history"][0]["id"] == old_rejected.id
+    assert any(entry["rejection_comment"] == "avoid broad rewrite" for entry in body["rejection_history"])

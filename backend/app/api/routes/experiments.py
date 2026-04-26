@@ -16,7 +16,14 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DbSession
 
-from app.api.schemas import ReviewRequest, ReviewResponse, SkipResponse
+from app.api.schemas import (
+    ExperimentDetailResponse,
+    RejectionHistoryEntryResponse,
+    ReviewRequest,
+    ReviewResponse,
+    RunSummaryResponse,
+    SkipResponse,
+)
 from app.core.db import get_db
 from app.models import Experiment
 from app.models.enums import Decision, ExperimentStatus
@@ -24,6 +31,72 @@ from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/experiments", tags=["experiments"])
+
+
+@router.get("/{experiment_id}", response_model=ExperimentDetailResponse)
+def get_experiment(
+    experiment_id: str,
+    db: DbSession = Depends(get_db),
+) -> ExperimentDetailResponse:
+    exp = db.get(Experiment, experiment_id)
+    if exp is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="experiment not found")
+
+    rejection_rows = (
+        db.query(Experiment)
+        .filter(
+            Experiment.session_id == exp.session_id,
+            Experiment.rejection_comment.is_not(None),
+        )
+        .order_by(Experiment.iteration.desc())
+        .limit(5)
+        .all()
+    )
+
+    return ExperimentDetailResponse(
+        id=exp.id,
+        session_id=exp.session_id,
+        iteration=exp.iteration,
+        parent_commit=exp.parent_commit,
+        experiment_commit=exp.experiment_commit,
+        branch_ref=exp.branch_ref,
+        status=exp.status.value,
+        diff_text=exp.diff_text,
+        diff_hash=exp.diff_hash,
+        validation_attempts=exp.validation_attempts,
+        score_before=exp.score_before,
+        score_after=exp.score_after,
+        score_delta=exp.score_delta,
+        tokens_used=exp.tokens_used,
+        decision=exp.decision.value if exp.decision else None,
+        rejection_comment=exp.rejection_comment,
+        kept=exp.kept,
+        worktree_pruned=exp.worktree_pruned,
+        created_at=exp.created_at.isoformat() if exp.created_at else None,
+        runs=[
+            RunSummaryResponse(
+                id=run.id,
+                worker_id=run.worker_id,
+                start_at=run.start_at.isoformat() if run.start_at else None,
+                end_at=run.end_at.isoformat() if run.end_at else None,
+                stdout_path=run.stdout_path,
+                stderr_path=run.stderr_path,
+                metric_payload=run.metric_payload,
+                exit_code=run.exit_code,
+            )
+            for run in exp.runs
+        ],
+        rejection_history=[
+            RejectionHistoryEntryResponse(
+                id=row.id,
+                iteration=row.iteration,
+                rejection_comment=row.rejection_comment or "",
+                decision=row.decision.value if row.decision else None,
+                created_at=row.created_at.isoformat() if row.created_at else None,
+            )
+            for row in rejection_rows
+        ],
+    )
 
 
 @router.post(
