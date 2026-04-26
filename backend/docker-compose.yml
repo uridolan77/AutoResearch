@@ -1,0 +1,70 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_REDIS_URL: redis://redis:6379/0
+      AR_DATA_DIR: /data
+      AR_WORKTREE_ROOT: /data/worktrees
+      AR_SECRET_KEY: ${AR_SECRET_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ar_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  worker:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_REDIS_URL: redis://redis:6379/0
+      AR_DATA_DIR: /data
+      AR_WORKTREE_ROOT: /data/worktrees
+      AR_SECRET_KEY: ${AR_SECRET_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - ar_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+
+  beat:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_REDIS_URL: redis://redis:6379/0
+      AR_DATA_DIR: /data
+      AR_WORKTREE_ROOT: /data/worktrees
+      AR_SECRET_KEY: ${AR_SECRET_KEY}
+    volumes:
+      - ar_data:/data
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info"]
+
+volumes:
+  ar_data:
