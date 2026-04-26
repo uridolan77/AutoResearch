@@ -1,6 +1,0 @@
-### **The Dissipation-Resolution Inequality**
-
-The relationship between dissipation and discriminatory capacity obeys a schematic bound \- the Dissipation-Resolution Inequality \- motivated by thermodynamic uncertainty relations (Barato and Seifert 2015; Horowitz and Gingrich 2020), quantum speed limits (Deffner and Lutz 2013), and stochastic thermodynamic cost-of-precision results (Pietzonka and Seifert 2018). For any embedded observer continuously tracking a macrostate at resolution ε over a tracking timescale τ, the dissipated power *P* satisfies a constraint of the form *P* ≥ *f*(1/ε, τ, *N*), where *f* is a monotonically increasing function of all three arguments and *N* is the number of tracked degrees of freedom.
-
-The inequality is not a single theorem but an envelope of independently derived trade-offs, each prohibitive \- thermodynamic uncertainty relations, quantum speed limits, Landauer-type scaling, and stochastic cost-of-precision bounds all converge on the same qualitative structure. A unified derivation from a single set of premises remains an open problem; what is established is the envelope, and no known bound permits the Demon's operating point. Three demands define the Demon's ambition: infinite resolution, infinite temporal stability, zero power. Under this envelope, the three are jointly incoherent.[^23]
-

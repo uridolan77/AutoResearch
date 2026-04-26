@@ -1,4 +1,0 @@
-### **What the Reader Can Now Do**
-
-After this chapter, the reader holds four operational capacities. First: distinguish toll regimes from rent regimes \- the crystal pays once, the cell pays continuously, and the fold names the threshold between them. Second: identify closure candidates by applying the cessation-test \- self-referential closure, categorically distinct cessation, novel macrovariable vocabulary \- and predict what the cessation signature would reveal if throughput were severed. Third: audit any philosophical framework for unpriced operations \- discriminations, maintenance commitments, or traversals performed from a standpoint that bears none of the cost the operation physically requires. Fourth: understand what Chapter 2 must deliver \- the formal Landauer derivation, the burn-rate metric, the Stratogonic Principle, and the conjunction proof \- and why failure at any of those four points would falsify the framework at its strongest tier.[^64]
-

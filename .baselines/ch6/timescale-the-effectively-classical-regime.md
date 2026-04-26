@@ -1,4 +1,0 @@
-### **Timescale: The Effectively Classical Regime**
-
-For macroscopic objects in typical environments, decoherence occurs far faster than any laboratory apparatus can respond. Joos and Zeh demonstrated that a dust grain of radius 10⁻³ cm in air reaches a coherence length of 10⁻¹³ cm within a microsecond; coherence over 10⁻¹ cm is suppressed within a nanosecond. For larger grains (radius \~10⁻¹ cm) in air at normal pressure and temperature, interference between positions separated by 10⁻³ cm is suppressed on timescales as short as 10⁻³⁶ seconds. These timescales \- many orders of magnitude shorter than dissipation or thermal relaxation \- ensure that macroscopic systems appear classical long before any human measurement begins. The classical world appears classical because it has been encoded to saturation by its own environment.
-

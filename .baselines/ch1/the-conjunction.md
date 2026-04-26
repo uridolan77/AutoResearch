@@ -1,6 +1,0 @@
-### **The Conjunction**
-
-Neither leg alone is invulnerable. The thermodynamic leg depends on the Landauer bound, which Norton and Myrvold contest (1.1, fn \[^7\]). The structural leg depends on impossibility results whose scope a sceptic could contest \- perhaps complete state determination is achievable for a system in which the observer is not embedded. The conjunction closes both escape routes: even if the Landauer bound adds no content beyond the second law, the structural impossibility survives intact; even if one contests the Breuer–Wolpert theorems' scope, the thermodynamic cost remains. Any observer embedded in the world it observes is both thermodynamically finite and structurally incomplete \- and physical observers are, by definition, embedded.[^54]
-
-The chapter's claims partition accordingly into Landauer-dependent and Landauer-independent, and the partition is a resilience feature. Landauer-dependent: the demon's thermodynamic insolvency, modularity costs, system-identification costs, and filtering as priced operation \- all of which survive under the second law directly if Norton is right. Landauer-independent: the Breuer–Wolpert structural impossibility and the embeddedness constraint itself \- claims that require no thermodynamic premise at all. The two-leg architecture is overdetermined by design.[^55]
-

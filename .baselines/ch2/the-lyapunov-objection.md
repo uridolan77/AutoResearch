@@ -1,4 +1,0 @@
-### **The Lyapunov Objection**
-
-A defender of the ε-Demon might grant the hardware barriers while insisting that a sufficiently resourced observer could track the microstate long enough to dissolve macroscopic autonomy over the relevant timescales. The Lyapunov instability of classical dynamics \- nearby trajectories diverge exponentially, with predictive contact lost in a time *t*\_L \~ λ⁻¹ ln(*L*/ε) \- concedes the argument rather than defeating it. To maintain predictive contact, the Demon must remeasure at intervals shorter than *t*\_L, reimposing the full measurement-and-erasure cycle each time. The per-measurement cost diverges as ε → 0; the remeasurement frequency diverges as the Lyapunov time shrinks; the two divergences *multiply*. This multiplicative catastrophe accelerates the Demon's dissolution, compounding the thermodynamic divergence of 2.3 with a temporal divergence that scales exponentially with the system's own dynamics.[^34]
-

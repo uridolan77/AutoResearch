@@ -1,8 +1,0 @@
-### **Patchy Dissolution: The Patchwork Principle**
-
-One escape must be closed before the dissolution horizon is reached: the intuition that partial micro-access yields proportional dissolution.
-
-Consider the engine. Suppose the ε-Demon resolves the molecule's position to resolution ε but leaves its momentum unresolved. The position-dependent macrostate \- LEFT or RIGHT \- becomes accessible to micro-redescription. But the momentum-dependent quantities \- kinetic energy at collision, speed during expansion, precise work delivered per stroke \- remain autonomous macrostates, constituted by interaction-couplings the observer has not engaged. Now reverse the choice: resolve momentum, leave position untracked. The momentum-dependent quantities dissolve; the position-dependent macrostate \- LEFT or RIGHT \- retains full autonomy. Each choice of resolved degrees of freedom yields a different patchwork of dissolved and undissolved macrokinds. No single choice dissolves them all. The conjunction of all choices is what the Synthesis Lemma prohibits.
-
-The dissolution is patchy, not graded. Each resolved degree of freedom dissolves only those macrokinds constituted by that specific coupling, leaving the rest untouched. The flat-physicalist extrapolation from local reductionist success to global dissolution relies on the graded intuition \- that increasing micro-access uniformly sees through all macroscopic structure. The physics shows the opposite. Magnification sharpens what it points at and leaves the rest untouched. The distinction between *kinds* of dissipation \- regime-regenerative versus regime-destructive \- is 2.4's work.[^18]
-
