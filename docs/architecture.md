@@ -577,17 +577,7 @@ Kept experiments ranked by score delta. Filterable. "Ship" → regroup flow (Pha
 - Folder ingestion: local path + git clone URL, target-file heuristics, starter `program.md` templates[^15]
 - All session lifecycle API endpoints
 
-#### ✅ CLI Validation Gate — End of Day 10
-Run the loop on a toy Python project (`CommandEvaluator` measuring pytest coverage). Confirm:
-- Loop ratchets (kept-rate > 0%)
-- Rejection feedback reduces near-duplicate proposals
-- Dedup hash fires on re-submission
-- `improvements_only` auto-rejects non-positive deltas correctly (not inverted)
-- Drain policy terminates cleanly at token cap
-- Stale-review Beat task fires and advances the session
-- Worktree prune removes old checkouts; object store intact
-- Journal survives a forced worker restart
-- `decide` is no-op on double-call
+ 
 
 **Do not write React until all of these pass.**
 
