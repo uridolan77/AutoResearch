@@ -167,6 +167,7 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
         settings = get_settings()
         gitsvc = GitService(worktree_root=settings.worktree_root)
         repo_path = Path(session.folder_path)
+        exp_path: Path | None = None
         try:
             exp_branch, exp_path = gitsvc.create_experiment_worktree(
                 repo_path, session_id, experiment.id
@@ -175,6 +176,13 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
             gitsvc.apply_diff(exp_path, experiment.diff_text)
             commit_sha = gitsvc.commit_all(exp_path, f"exp-{experiment.iteration}: candidate")
         except GitError as e:
+            # Best-effort cleanup: if we created a worktree but failed to apply/commit,
+            # remove it so repeated failures don't leak disk.
+            if exp_path is not None:
+                try:
+                    gitsvc.remove_worktree(repo_path, exp_path)
+                except Exception:
+                    pass
             experiment.status = ExperimentStatus.failed
             db.commit()
             journal_append(

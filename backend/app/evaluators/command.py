@@ -22,10 +22,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-import docker
-from docker.errors import APIError, ContainerError, ImageNotFound, NotFound
-from jsonpath_ng import parse as jsonpath_parse
-
 from app.evaluators.base import Evaluator, EvaluatorError, EvaluatorResult
 from app.models.enums import NetworkMode
 
@@ -36,6 +32,14 @@ DEFAULT_WORKDIR = "/workspace"
 
 class CommandEvaluator(Evaluator):
     def evaluate(self, worktree_path: Path) -> EvaluatorResult:
+        try:
+            import docker  # type: ignore
+            from docker.errors import APIError, ContainerError, ImageNotFound, NotFound  # type: ignore
+        except ModuleNotFoundError as e:
+            raise EvaluatorError(
+                "docker SDK is not installed; CommandEvaluator requires the 'docker' package"
+            ) from e
+
         cfg = self.config
         image = cfg.get("image")
         command = cfg.get("command")
@@ -105,7 +109,11 @@ class CommandEvaluator(Evaluator):
         # Phase 1: only on/off. Phase 2 will route egress_proxy through Squid.
         if mode == NetworkMode.none:
             return "none"
-        return "bridge"
+        if mode == NetworkMode.bridge:
+            return "bridge"
+        raise EvaluatorError(
+            f"network_mode {mode.value!r} is not supported in Phase 1 (expected 'none' or 'bridge')"
+        )
 
     def _extract_metric(self, stdout: str, worktree_path: Path) -> tuple[float, dict]:
         cfg = self.config
@@ -118,6 +126,12 @@ class CommandEvaluator(Evaluator):
             text = stdout
 
         if "metric_path" in cfg:
+            try:
+                from jsonpath_ng import parse as jsonpath_parse  # type: ignore
+            except ModuleNotFoundError as e:
+                raise EvaluatorError(
+                    "jsonpath-ng is not installed; CommandEvaluator metric_path requires 'jsonpath-ng'"
+                ) from e
             try:
                 obj: Any = json.loads(text)
             except json.JSONDecodeError as e:

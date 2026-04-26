@@ -10,7 +10,10 @@ from dataclasses import dataclass
 
 import anthropic
 import openai
-import tiktoken
+try:
+    import tiktoken  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    tiktoken = None  # type: ignore
 
 from app.core.config import get_settings
 
@@ -30,6 +33,10 @@ class LLMResult:
 def estimate_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     """Cheap pre-call token estimate. tiktoken cl100k_base is close enough
     for both Claude and GPT for budget gating purposes."""
+    if tiktoken is None:
+        # Fallback heuristic (~4 chars/token for English-ish text). This is only
+        # used when tiktoken isn't installed in the runtime.
+        return max(1, len(text) // 4)
     try:
         enc = tiktoken.encoding_for_model(model)
     except KeyError:

@@ -5,14 +5,15 @@ Triggered as a fresh Celery task by:
   - score (when review_mode=auto_approve or improvements_only auto-rejects)
   - stale_reviews Beat task (auto-reject on timeout)
 
-The state transition is guarded at the DB level: the conditional UPDATE only
-fires when status='awaiting_review'. Subsequent calls see status already
-moved (kept/reverted/...) and return as a no-op. SQLite's per-connection
-write lock + the conditional WHERE makes this safe under concurrent submit.
+The state transition is guarded at the DB level: we do a conditional UPDATE
+that only fires when status='awaiting_review'. This makes decide safe under
+Celery retries / duplicate delivery: only the first caller transitions the row.
 
 After the transition, decide:
-  1. Merges the experiment branch into the session branch on approve
-     (revert is a no-op on git side; the exp branch stays as a journal record).
+  1. Merges the experiment branch into the session branch on approve.
+  2. On reject, resets the experiment worktree back to parent_commit so the
+     filesystem checkout reflects the reverted state (branch still exists as a
+     journal record).
   2. Appends a `decided` journal record carrying outcome + rejection_comment.
   3. Prunes worktrees of experiments older than worktree_prune_window
      (filesystem checkout removed; object store + journal retained).
@@ -87,20 +88,29 @@ def _prune_old_worktrees(db, session: Session, current_iteration: int) -> int:
 def decide(self, experiment_id: str) -> dict:
     db = SessionLocal()
     try:
-        # Idempotency guard: only proceed if status is awaiting_review.
-        # Subsequent calls (double-click, retry, etc.) see status already moved
-        # and return cleanly.
-        exp = (
+        # Atomic idempotency guard: only the first caller transitions the row.
+        # We move status out of awaiting_review immediately; everything else is
+        # derived from the stored decision.
+        updated = (
             db.query(Experiment)
             .filter(
                 Experiment.id == experiment_id,
                 Experiment.status == ExperimentStatus.awaiting_review,
             )
-            .first()
+            .update(
+                {Experiment.status: ExperimentStatus.running},
+                synchronize_session=False,
+            )
         )
-        if exp is None:
+        db.commit()
+
+        if updated == 0:
             logger.info("decide(%s): not awaiting_review — no-op", experiment_id)
             return {"experiment_id": experiment_id, "noop": True}
+
+        exp = db.get(Experiment, experiment_id)
+        if exp is None:
+            return {"experiment_id": experiment_id, "noop": True, "reason": "missing after update"}
 
         session = db.get(Session, exp.session_id)
         if session is None:
@@ -149,9 +159,32 @@ def decide(self, experiment_id: str) -> dict:
                 _enqueue_loop(session.id)
                 return {"experiment_id": experiment_id, "outcome": "failed"}
         else:
-            # Revert: leave exp branch / worktree alone (journal record).
+            # Revert: reset the experiment worktree back to parent_commit.
             exp.status = ExperimentStatus.reverted
             exp.kept = False
+            if exp.parent_commit:
+                try:
+                    settings = get_settings()
+                    gitsvc = GitService(worktree_root=settings.worktree_root)
+                    wt_path = settings.worktree_root / f"session-{session.id}" / "exp" / exp.id
+                    gitsvc.reset_hard(wt_path, exp.parent_commit)
+                except GitError as e:
+                    logger.error("decide(%s): reset_hard failed: %s", experiment_id, e)
+                    exp.status = ExperimentStatus.failed
+                    db.commit()
+                    journal_append(
+                        session.id,
+                        "decided",
+                        {
+                            "experiment_id": exp.id,
+                            "iteration": exp.iteration,
+                            "decision": decision.value,
+                            "outcome": "failed",
+                            "reason": f"revert failed: {e}",
+                        },
+                    )
+                    _enqueue_loop(session.id)
+                    return {"experiment_id": experiment_id, "outcome": "failed"}
 
         db.commit()
         db.refresh(exp)
