@@ -139,6 +139,19 @@ class GitService:
         if proc.returncode != 0:
             raise GitError(f"git apply failed: {proc.stderr.strip()}")
 
+    def check_diff(self, repo_path: Path, diff_text: str) -> None:
+        """Check whether `git apply` would accept the diff (no mutation)."""
+        repo_path = Path(repo_path)
+        proc = subprocess.run(
+            ["git", "apply", "--check", "--whitespace=nowarn", "-"],
+            cwd=repo_path,
+            input=diff_text,
+            text=True,
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise GitError(f"git apply check failed: {proc.stderr.strip()}")
+
     def commit_all(self, worktree_path: Path, message: str) -> str:
         worktree_path = Path(worktree_path)
         _run(["add", "-A"], cwd=worktree_path)

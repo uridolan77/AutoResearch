@@ -12,6 +12,7 @@ the session branch and committed. The chain proceeds to run_experiment.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,54 @@ from app.tasks.celery_app import celery_app
 from app.tasks.chain import passthrough, short_circuit
 
 logger = logging.getLogger(__name__)
+
+_FENCE_RE = re.compile(r"```(?:diff)?\s*([\s\S]*?)```", re.IGNORECASE)
+
+
+def _sanitize_diff(raw: str) -> str:
+    """Best-effort extraction of a git-apply-compatible unified diff."""
+    if not raw:
+        return ""
+    text = raw.strip()
+
+    # If the model wrapped the diff in fences, extract the first fenced block.
+    m = _FENCE_RE.search(text)
+    if m:
+        text = m.group(1).strip()
+
+    # Drop leading non-diff chatter.
+    lines = text.splitlines()
+    start = 0
+    for i, line in enumerate(lines):
+        if line.startswith("diff --git ") or line.startswith("--- ") or line.startswith("+++ "):
+            start = i
+            break
+    cleaned = "\n".join(lines[start:]).strip()
+
+    # Some models emit hunk bodies without the required leading prefix
+    # characters (" ", "+", "-", or "\\"). Fix up by prefixing a space for
+    # any line inside a hunk that lacks a prefix.
+    out_lines: list[str] = []
+    in_hunk = False
+    for line in cleaned.splitlines():
+        if line.startswith("@@"):
+            in_hunk = True
+            out_lines.append(line)
+            continue
+        if line.startswith("diff --git ") or line.startswith("--- ") or line.startswith("+++ ") or line.startswith("index "):
+            in_hunk = False
+            out_lines.append(line)
+            continue
+        if in_hunk:
+            if line.startswith((" ", "+", "-", "\\")):
+                out_lines.append(line)
+            else:
+                out_lines.append(" " + line)
+        else:
+            out_lines.append(line)
+
+    cleaned = "\n".join(out_lines).strip()
+    return cleaned
 
 
 def _propose_again(db, session: Session, experiment: Experiment, hint: str) -> int:
@@ -76,11 +125,17 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
 
         whitelist = (session.target_file,)
         max_attempts = session.validation_retry_max
+        repo_path = Path(session.folder_path)
+        settings = get_settings()
+        gitsvc = GitService(worktree_root=settings.worktree_root)
 
         # ---- validation + retry loop -------------------------------------
         last_reason: str | None = None
         for attempt in range(1, max_attempts + 1):
             experiment.validation_attempts = attempt
+            db.commit()
+
+            experiment.diff_text = _sanitize_diff(experiment.diff_text or "")
             db.commit()
 
             v = validate(
@@ -89,8 +144,40 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
                 whitelist=whitelist,
             )
             if v.ok:
-                last_reason = None
-                break
+                # Also ensure `git apply` accepts the diff (format + context).
+                try:
+                    gitsvc.check_diff(repo_path, experiment.diff_text or "")
+                    last_reason = None
+                    break
+                except GitError as e:
+                    last_reason = str(e)
+                    journal_append(
+                        session_id,
+                        "validation_failed",
+                        {
+                            "experiment_id": experiment.id,
+                            "attempt": attempt,
+                            "reason": last_reason,
+                        },
+                    )
+                    if attempt == max_attempts:
+                        break
+                    try:
+                        _propose_again(
+                            db,
+                            session,
+                            experiment,
+                            hint=f"validation failed: {last_reason}",
+                        )
+                    except RuntimeError as e2:
+                        journal_append(
+                            session_id,
+                            "validation_retry_aborted",
+                            {"experiment_id": experiment.id, "reason": str(e2)},
+                        )
+                        last_reason = str(e2)
+                        break
+                    continue
 
             last_reason = v.reason
             journal_append(
@@ -168,9 +255,6 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
             return short_circuit(ctx, "duplicate diff")
 
         # ---- apply diff to a fresh experiment worktree -------------------
-        settings = get_settings()
-        gitsvc = GitService(worktree_root=settings.worktree_root)
-        repo_path = Path(session.folder_path)
         exp_path: Path | None = None
         try:
             exp_branch, exp_path = gitsvc.create_experiment_worktree(

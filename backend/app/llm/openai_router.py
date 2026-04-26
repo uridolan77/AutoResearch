@@ -11,9 +11,23 @@ class OpenAIRouter(BaseLLMRouter):
     def __init__(self, *, overrides: dict[str, ModelConfig] | None = None) -> None:
         settings = get_settings()
         self._client = openai.OpenAI(api_key=settings.openai_api_key)
+
+        def _normalize_openai_model(name: str, *, fallback: str) -> str:
+            # AutoResearch historically used Claude for proposer; when the selected provider
+            # is OpenAI we must ensure the model name is an OpenAI model.
+            lowered = (name or "").lower()
+            if lowered.startswith("claude"):
+                return fallback
+            return name
+
+        proposer_model = _normalize_openai_model(
+            settings.proposer_model, fallback=_normalize_openai_model(settings.judge_model, fallback="gpt-4o-mini")
+        )
+        judge_model = _normalize_openai_model(settings.judge_model, fallback="gpt-4o-mini")
+
         self._routing_table: dict[str, ModelConfig] = {
-            "autoresearch_proposer": ModelConfig(model=settings.proposer_model, temperature=0.3),
-            "autoresearch_judge": ModelConfig(model=settings.judge_model, temperature=0.0),
+            "autoresearch_proposer": ModelConfig(model=proposer_model, temperature=0.3),
+            "autoresearch_judge": ModelConfig(model=judge_model, temperature=0.0),
         }
         if overrides:
             self._routing_table.update(overrides)

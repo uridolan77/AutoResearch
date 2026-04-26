@@ -10,12 +10,32 @@ services:
       timeout: 3s
       retries: 5
 
+  migrate:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_REDIS_URL: redis://redis:6379/0
+      AR_DATA_DIR: /data
+      AR_WORKTREE_ROOT: /data/worktrees
+      AR_SECRET_KEY: ${AR_SECRET_KEY}
+      AR_LLM_PROVIDER: ${AR_LLM_PROVIDER:-anthropic}
+      AR_ANTHROPIC_API_KEY: ${AR_ANTHROPIC_API_KEY:-}
+      AR_OPENAI_API_KEY: ${AR_OPENAI_API_KEY:-}
+    volumes:
+      - ar_data:/data
+    command: ["alembic", "upgrade", "head"]
+
   api:
     build: .
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       AR_DATABASE_URL: sqlite:////data/autoresearch.db
       AR_REDIS_URL: redis://redis:6379/0
@@ -38,6 +58,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       AR_DATABASE_URL: sqlite:////data/autoresearch.db
       AR_REDIS_URL: redis://redis:6379/0
@@ -58,6 +80,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       AR_DATABASE_URL: sqlite:////data/autoresearch.db
       AR_REDIS_URL: redis://redis:6379/0

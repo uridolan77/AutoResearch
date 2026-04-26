@@ -107,12 +107,27 @@ HARD RULES:
   - Never modify program.md, evaluator configs, .env, or any secret file.
   - Make the smallest change that plausibly moves the metric in the right direction.
 
+FORMAT REQUIREMENTS (must follow exactly):
+  - Output must start with: diff --git a/<target_file> b/<target_file>
+  - Include --- a/<target_file> and +++ b/<target_file>
+  - Include at least one @@ hunk header
+  - Do NOT include Markdown fences (```), headings, or explanations.
+
 Your diff will be:
   1. Validated (file count, whitelist, protected paths) — failure costs you a retry.
   2. Hashed and rejected if it duplicates a prior attempt.
   3. Applied, committed in an isolated git worktree, and run through the evaluator.
   4. Reviewed by a human (approve = kept, reject = reverted, with a comment that
      will appear in your next iteration's "Things not to try" block).
+
+Example (structure only; your content must match the real file contents):
+diff --git a/<target_file> b/<target_file>
+index 0000000..0000000 100644
+--- a/<target_file>
++++ b/<target_file>
+@@ -1,3 +1,3 @@
+-old line
++new line
 """
 
 USER_TEMPLATE = """## program.md (the research direction — you do NOT edit this)

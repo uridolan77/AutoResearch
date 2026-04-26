@@ -29,6 +29,49 @@ def test_make_router_selects_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(router, AnthropicRouter)
 
 
+def test_openai_router_normalizes_claude_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.llm import openai_router as oai_mod
+
+    class _S:
+        openai_api_key = "test"
+        proposer_model = "claude-sonnet-4-5"
+        judge_model = "gpt-4o-mini"
+
+    monkeypatch.setattr(oai_mod, "get_settings", lambda: _S())
+
+    class _FakeChat:
+        class completions:
+            @staticmethod
+            def create(*, model: str, **kwargs):
+                class _U:
+                    prompt_tokens = 1
+                    completion_tokens = 1
+
+                class _M:
+                    content = "ok"
+
+                class _C:
+                    message = _M()
+
+                class _R:
+                    choices = [_C()]
+                    usage = _U()
+
+                # Assert we never send Claude model IDs to OpenAI.
+                assert not model.lower().startswith("claude")
+                return _R()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    monkeypatch.setattr(oai_mod.openai, "OpenAI", lambda api_key: _FakeClient())
+
+    r = oai_mod.OpenAIRouter()
+    out = r.call("autoresearch_proposer", "s", "u", max_tokens=10)
+    assert out.model == "gpt-4o-mini"
+    assert out.content == "ok"
+
+
 @dataclass
 class _DummyRouter:
     calls: list[str]
