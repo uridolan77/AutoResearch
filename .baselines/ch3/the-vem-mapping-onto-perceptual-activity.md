@@ -1,0 +1,10 @@
+### **The VEM mapping onto perceptual activity**
+
+The triadic grammar instantiates in neural tissue with measurable temporal parameters.
+
+*Variation:* the visual field before attentional selection — a high-dimensional sensory manifold carrying more discriminable features than any single perceptual act can resolve. The underdetermination is physical: the retinal input is compatible with multiple perceptual interpretations (the Necker cube, bistable motion displays), each a distinct resolution of the same sensory field under identical sensory input. The formal parallel to supersaturation: incompatible perceptual futures coexisting in the same neural volume.
+
+*Encounter:* attentional selection. The P300 event-related potential — peaking \~300 ms post-stimulus, generated primarily in temporo-parietal and frontal cortex — marks the discrete, irreversible transaction in which one perceptual interpretation is selected and alternatives are suppressed.[^54] The selection is Landauer-costly: the neural computation discriminating target from non-target dissipates entropy at a rate bounded below by the number of bits resolved. The P300 is the neural analogue of the seed crystal’s first contact — a boundary event where incompatible constraint-regimes (competing perceptual interpretations) discharge.
+
+*Mediation:* sustained perceptual maintenance. Once selected, the perceptual interpretation is maintained by recurrent cortical activity — each processing cycle regenerates the feature maps that channel the next cycle. The timescale shifts from the P300’s \~300 ms to the longer scales of working memory (seconds) and long-term potentiation (LTP: minutes to hours for early-phase, days to weeks for late-phase protein-synthesis-dependent consolidation).[^55] Each maintenance cycle is Landauer-costly: synaptic transmission, dendritic integration, spike generation — all irreversible, all entropy-producing. The regime is the neural analogue of the growth front: each perceptual cycle deposits a constraint (updated feature map) that channels the next cycle.
+

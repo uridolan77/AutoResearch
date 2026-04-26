@@ -1,0 +1,10 @@
+### **Cross-Stratal Confirmation**
+
+The sheaf framework confirms the FIP (the Formal Isomorphism Principle (§6.3)) with mathematical precision. What recurs across strata is the *structure*: the logical requirement for overlap agreement, the diagnosis of obstruction through (H^1), the distinction between local coherence and global consistency. What does not recur is the *mechanism* by which overlaps are maintained or repaired.
+
+At the physical stratum, Gluing failure is quantum contextuality: the Kochen–Specker theorem, formalised sheaf-theoretically by Abramsky and Brandenburger, demonstrates that no single assignment of definite values to all observables is consistent with quantum predictions \- a Gluing pathology that no amount of redundancy can cure. The obstruction is enforced by the Hamiltonian; intentional cost is zero.
+
+At the biological stratum, phylogenetic incongruence \- different genes producing incompatible evolutionary trees via horizontal gene transfer, incomplete lineage sorting, and gene duplication \- produces non-trivial (H^1) whose resolution requires diagnosing the substrate-specific dynamics of reticulate evolution. The obstruction is resolved by evolutionary process; intentional cost is zero; energetic cost is non-zero.
+
+At the institutional stratum, the merchant network and the South Sea Bubble are both instances of non-trivial (H^1) \- restriction-map disagreement produced by fraud, miscoordination, or regulatory incapacity. The resolution mechanisms are categorically different from the physical and biological cases: audits, appellate courts, treaty harmonisation, standards bodies. The cost of these mechanisms \- the burn rate of Gluing at the institutional stratum \- is the overhead of cross-jurisdictional coordination. When the coordination burn rate exceeds the institutional budget, the restriction maps degrade and the regime fragments into locally coherent but globally incoherent patches. Intentional cost is non-zero: someone must choose to fund the audit, and can choose not to.[^19]
+

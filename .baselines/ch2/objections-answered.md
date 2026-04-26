@@ -1,0 +1,8 @@
+### **Objections Answered**
+
+The dispositive consideration against both major objections is the same: even if fully granted, each would disarm only the thermodynamic arm. The structural arm \- Breuer, Wolpert, Ismael, GFH \- remains intact.
+
+**The reversible-computing objection.** Bennett (1973) demonstrated that computation can be performed with arbitrarily low dissipation if each step is logically reversible. But the Demon's task is not computation \- it is *measurement*, acquiring information through physical interaction with a thermal system. Acquiring a stable record requires coupling to memory and environment, carrying irreducible entropy loads governed by the mutual information gained (Brillouin; Sagawa-Ueda). Moreover, the Demon's memory is a continuously overwritten buffer, not a write-once archive; under finite memory and stability constraints, reset and erasure steps remain subject to Landauer-type bounds.[^19]
+
+**The Hemmo-Shenker Landauer objection.** Hemmo and Shenker invoke the Putnam-Shagrir multiple-computations theorem: a single physical process can simultaneously implement both logically irreversible and logically reversible computations, so physical dissipation cannot be bound to the logical character of either alone. But the Landauer bound, as derived by Myrvold, is not a supervenience claim about logical type \- it is a structural constraint on the phase-space dynamics of any system-plus-reservoir evolution implementing a many-to-one mapping. Whether the same process also implements a reversible computation under an alternative description is irrelevant: the bound derives from phase-space contraction, which obtains regardless of how many computational descriptions the dynamics simultaneously satisfies.[^20]
+

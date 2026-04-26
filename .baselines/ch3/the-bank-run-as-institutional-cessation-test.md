@@ -1,0 +1,6 @@
+### **The bank-run as institutional cessation-test**
+
+The cessation-test extends to institutional strata, disciplined by the firewall. A bank run is the institutional analogue of annealing: withdraw depositor confidence and the constraint-architecture \- regulatory coherence, contractual trust, interbank lending networks \- collapses while the Hamiltonian floor (individual brains, physical infrastructure) survives intact. A different stratum diagnosed by a different breakdown, exactly paralleling the crystal: anneal and Hall-Petch strengthening vanishes while the molecular bonds persist; trigger the bank run and institutional coherence collapses while the neurons persist. The parallel does not claim that institutions *are* crystals; it claims that the cessation-test's diagnostic structure \- constraint-architecture collapses while the floor beneath it survives \- recurs across substrates at each tier of the epistemic gradient.[^39]
+
+The hierarchy grades. The wall protects. The table instruments. The firewall polices. But the apparatus has been built in isolation \- the beaker, the Principle, the Junction, the S–L–Σ nesting. Three thinkers have, independently and from different starting points, converged on pieces of the same structure. 3.5 audits their deposits and fills their gaps.
+
