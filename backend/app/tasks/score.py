@@ -80,6 +80,20 @@ def score(self, ctx: dict[str, Any]) -> dict[str, Any]:
         if session is None or experiment is None:
             return short_circuit(ctx, "session or experiment missing")
         evaluator_row = db.get(EvaluatorRow, session.evaluator_id)
+        if evaluator_row is None:
+            experiment.status = ExperimentStatus.failed
+            db.commit()
+            journal_append(
+                session_id,
+                "experiment_failed",
+                {
+                    "experiment_id": experiment_id,
+                    "stage": "score",
+                    "reason": "evaluator row missing",
+                },
+            )
+            celery_app.send_task("autoresearch.loop", args=[session_id])
+            return short_circuit(ctx, "evaluator row missing")
 
         baseline = _baseline_score(db, session)
         score_after = float(raw_score)
@@ -108,9 +122,7 @@ def score(self, ctx: dict[str, Any]) -> dict[str, Any]:
 
         # ---- review_mode routing ----------------------------------------
         mode = session.review_mode
-        direction = (
-            evaluator_row.direction if evaluator_row else MetricDirection.maximize
-        )
+        direction = evaluator_row.direction
 
         if mode == ReviewMode.auto_approve:
             experiment.decision = Decision.approved

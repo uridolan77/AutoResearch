@@ -22,6 +22,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
+
 from app.agent import ProposerClient, build_context, estimate_tokens
 from app.core.db import SessionLocal
 from app.journal import append as journal_append
@@ -43,6 +45,36 @@ def _next_iteration(db, session_id: str) -> int:
     return (last[0] + 1) if last else 1
 
 
+def _create_experiment_with_retry(db, session_id: str, *, max_attempts: int = 3) -> Experiment | None:
+    """Allocate (session_id, iteration) robustly under concurrent planners.
+
+    The experiments table has a unique constraint on (session_id, iteration);
+    if two planners race, we retry with a fresh MAX(iteration)+1.
+    """
+    for attempt in range(1, max_attempts + 1):
+        iteration = _next_iteration(db, session_id)
+        experiment = Experiment(
+            session_id=session_id,
+            iteration=iteration,
+            status=ExperimentStatus.pending,
+        )
+        db.add(experiment)
+        try:
+            db.commit()
+            db.refresh(experiment)
+            return experiment
+        except IntegrityError:
+            db.rollback()
+            logger.warning(
+                "plan(%s): iteration allocation race on %s (attempt %s/%s)",
+                session_id,
+                iteration,
+                attempt,
+                max_attempts,
+            )
+    return None
+
+
 @celery_app.task(name="autoresearch.plan", bind=True)
 def plan(self, session_id: str) -> dict[str, Any]:
     db = SessionLocal()
@@ -60,15 +92,16 @@ def plan(self, session_id: str) -> dict[str, Any]:
             }
 
         # --- create experiment row -----------------------------------------
-        iteration = _next_iteration(db, session_id)
-        experiment = Experiment(
-            session_id=session_id,
-            iteration=iteration,
-            status=ExperimentStatus.pending,
-        )
-        db.add(experiment)
-        db.commit()
-        db.refresh(experiment)
+        experiment = _create_experiment_with_retry(db, session_id)
+        if experiment is None:
+            celery_app.send_task("autoresearch.loop", args=[session_id])
+            return {
+                "session_id": session_id,
+                "done": True,
+                "done_reason": "could not allocate unique iteration",
+            }
+
+        iteration = experiment.iteration
 
         ctx_msg = build_context(db, session)
 

@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_provider_keys(self) -> "Settings":
+        if not self.secret_key:
+            raise ValueError("AR_SECRET_KEY is required")
         if self.llm_provider == "anthropic" and not self.anthropic_api_key:
             raise ValueError(
                 "AR_ANTHROPIC_API_KEY is required when AR_LLM_PROVIDER=anthropic"
