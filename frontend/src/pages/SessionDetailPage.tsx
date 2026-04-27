@@ -24,6 +24,10 @@ export function SessionDetailPage() {
       toast.info(`Session status: ${event.payload.status.replace(/_/g, ' ')}`)
     } else if (event.type === 'session.paused') {
       toast.info('Session paused.')
+    } else if (event.type === 'session.draining') {
+      toast.info('Session is draining current work.')
+    } else if (event.type === 'session.complete') {
+      toast.success('Session complete.')
     } else if (event.type === 'session.token_warning') {
       toast.warning('Token budget at 80% - session will stop when cap is reached.')
     } else if (event.type === 'experiment.running') {

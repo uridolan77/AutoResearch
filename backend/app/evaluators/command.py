@@ -22,6 +22,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from app.core.config import get_settings
 from app.evaluators.base import Evaluator, EvaluatorError, EvaluatorResult
 from app.models.enums import NetworkMode
 
@@ -49,6 +50,7 @@ class CommandEvaluator(Evaluator):
         timeout = int(self.row.timeout_s)
 
         network = self._network_for_mode(self.row.network_mode)
+        safe_worktree = self._validated_worktree_path(worktree_path)
 
         client = docker.from_env()
         container = None
@@ -62,10 +64,14 @@ class CommandEvaluator(Evaluator):
                 command=["sh", "-c", command],
                 working_dir=workdir,
                 volumes={
-                    str(worktree_path.absolute()): {"bind": workdir, "mode": "rw"},
+                    str(safe_worktree): {"bind": workdir, "mode": "rw"},
                 },
                 environment=self.secrets,
                 network_mode=network,
+                mem_limit="512m",
+                cpu_period=100_000,
+                cpu_quota=50_000,
+                pids_limit=64,
                 detach=True,
                 stdout=True,
                 stderr=True,
@@ -93,7 +99,7 @@ class CommandEvaluator(Evaluator):
                 except (NotFound, APIError):
                     pass
 
-        score, payload = self._extract_metric(stdout, worktree_path)
+        score, payload = self._extract_metric(stdout, safe_worktree)
         return EvaluatorResult(
             score=score,
             metric_payload=payload,
@@ -103,6 +109,17 @@ class CommandEvaluator(Evaluator):
         )
 
     # ------------------------------------------------------------ helpers
+
+    @staticmethod
+    def _validated_worktree_path(worktree_path: Path) -> Path:
+        settings = get_settings()
+        resolved = worktree_path.resolve()
+        root = settings.worktree_root.resolve()
+        try:
+            resolved.relative_to(root)
+        except ValueError as e:
+            raise EvaluatorError("worktree_path escapes configured worktree_root") from e
+        return resolved
 
     @staticmethod
     def _network_for_mode(mode: NetworkMode) -> str:
@@ -120,8 +137,16 @@ class CommandEvaluator(Evaluator):
         source = cfg.get("metric_source", "stdout")
 
         if source.startswith("file:"):
-            rel = source[len("file:"):]
-            text = (worktree_path / rel).read_text(encoding="utf-8", errors="replace")
+            rel = source[len("file:"):].strip()
+            rel_path = Path(rel)
+            if rel_path.is_absolute():
+                raise EvaluatorError("metric_source file path must be relative")
+            metric_file = (worktree_path / rel_path).resolve()
+            try:
+                metric_file.relative_to(worktree_path.resolve())
+            except ValueError as e:
+                raise EvaluatorError("metric_source file path escapes worktree") from e
+            text = metric_file.read_text(encoding="utf-8", errors="replace")
         else:
             text = stdout
 

@@ -1,6 +1,7 @@
 """stale_reviews — Beat task auto-rejects on review_timeout_hours expiry."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from tests.conftest import make_experiment, make_session
@@ -80,3 +81,27 @@ def test_already_decided_is_not_swept(db_factory) -> None:
     ca.send_task.assert_not_called()
     db.expire_all()
     assert db.get(Experiment, kept.id).decision is None
+
+
+def test_deciding_recovery_uses_updated_at_not_created_at(db_factory) -> None:
+    Sm = db_factory
+    db = Sm()
+    s = make_session(db, review_timeout_hours=48)
+    exp = make_experiment(
+        db, s, status=ExperimentStatus.deciding, age_hours=72
+    )
+    exp.updated_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    db.commit()
+
+    with (
+        patch("app.tasks.stale_reviews.SessionLocal", Sm),
+        patch("app.tasks.stale_reviews.celery_app") as ca,
+    ):
+        from app.tasks.stale_reviews import stale_reviews
+
+        out = stale_reviews.run()
+
+    assert out["recovered"] == 0
+    ca.send_task.assert_not_called()
+    db.expire_all()
+    assert db.get(Experiment, exp.id).status == ExperimentStatus.deciding

@@ -26,6 +26,17 @@ export function useSessionWebSocket(
     let active = true
     let socket: WebSocket | null = null
     let reconnectTimer: number | null = null
+    let reconnectAttempts = 0
+
+    const scheduleReconnect = () => {
+      if (!active) return
+      const baseMs = 500
+      const cappedAttempt = Math.min(reconnectAttempts, 6)
+      const backoffMs = Math.min(15_000, baseMs * 2 ** cappedAttempt)
+      const jitterMs = Math.floor(Math.random() * 400)
+      reconnectAttempts += 1
+      reconnectTimer = window.setTimeout(connect, backoffMs + jitterMs)
+    }
 
     const connect = () => {
       if (!active) return
@@ -33,6 +44,7 @@ export function useSessionWebSocket(
 
       socket.onopen = () => {
         setConnected(true)
+        reconnectAttempts = 0
       }
 
       socket.onmessage = (message) => {
@@ -47,7 +59,7 @@ export function useSessionWebSocket(
       socket.onclose = () => {
         setConnected(false)
         if (!active) return
-        reconnectTimer = window.setTimeout(connect, 1500)
+        scheduleReconnect()
       }
 
       socket.onerror = () => {

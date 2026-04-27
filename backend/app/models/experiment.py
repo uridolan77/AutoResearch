@@ -70,6 +70,9 @@ class Experiment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), index=True
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), index=True
+    )
 
     session = relationship("Session", back_populates="experiments")
     runs = relationship("Run", back_populates="experiment", cascade="all, delete-orphan")

@@ -156,6 +156,8 @@ export interface ReviewResponse {
 export type SessionEvent =
   | { type: 'session.status'; payload: { id: string; status: SessionStatus } }
   | { type: 'session.paused'; payload: { id: string } }
+  | { type: 'session.draining'; payload: { id: string } }
+  | { type: 'session.complete'; payload: { id: string } }
   | { type: 'session.stopped'; payload: { reason: string } }
   | { type: 'session.token_warning'; payload: { id: string; tokens_used: number; token_cap_session: number } }
   | { type: 'experiment.running'; payload: { id: string; iteration: number } }

@@ -126,7 +126,11 @@ async def session_events(websocket: WebSocket, session_id: str) -> None:
                 await websocket.send_json({"type": "session.status", "payload": {"id": session.id, "status": session.status.value}})
                 if session.status == SessionStatus.paused:
                     await websocket.send_json({"type": "session.paused", "payload": {"id": session.id}})
-                if session.status in (SessionStatus.draining, SessionStatus.stopped, SessionStatus.complete):
+                if session.status == SessionStatus.draining:
+                    await websocket.send_json({"type": "session.draining", "payload": {"id": session.id}})
+                if session.status == SessionStatus.complete:
+                    await websocket.send_json({"type": "session.complete", "payload": {"id": session.id}})
+                if session.status == SessionStatus.stopped:
                     await websocket.send_json({"type": "session.stopped", "payload": {"reason": session.status.value}})
                 last_session_status = session.status
 
@@ -364,9 +368,10 @@ def start_session(
     s = db.get(Session, session_id)
     if s is None:
         raise HTTPException(status_code=404, detail="session not found")
-    if s.status == SessionStatus.idle:
-        s.status = SessionStatus.running
-        db.commit()
+    if s.status != SessionStatus.idle:
+        raise HTTPException(status_code=409, detail=f"session cannot be started from status {s.status.value!r}")
+    s.status = SessionStatus.running
+    db.commit()
     celery_app.send_task("autoresearch.loop", args=[session_id])
     return SessionActionResponse(session_id=session_id, status=s.status.value)
 

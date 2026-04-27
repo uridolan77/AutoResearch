@@ -81,7 +81,7 @@ def stale_reviews(self) -> dict:
         )
         stuck_threshold = timedelta(minutes=DECIDING_STUCK_MINUTES)
         for exp in deciding_candidates:
-            updated_at = exp.created_at  # best proxy; dedicated updated_at not yet on model
+            updated_at = exp.updated_at
             if updated_at.tzinfo is None:
                 updated_at = updated_at.replace(tzinfo=timezone.utc)
             age = now - updated_at

@@ -70,23 +70,27 @@ def extract_files(diff_text: str) -> tuple[str, ...]:
     """Pull out the set of file paths a unified diff touches."""
     files: list[str] = []
 
+    def _append_unique(path: str) -> None:
+        if path and path != "/dev/null" and path not in files:
+            files.append(path)
+
     for m in _GIT_HEADER.finditer(diff_text):
         a, b = m.group(1).strip(), m.group(2).strip()
-        # In a rename diff a != b; both should count as touched.
-        for p in (a, b):
-            if p and p != "/dev/null" and p not in files:
-                files.append(p)
+        # Count one logical file per header. For renames prefer destination path.
+        if a != b and b != "/dev/null":
+            _append_unique(b)
+            continue
+        _append_unique(a)
+        _append_unique(b)
 
     if not files:
         # Fall back to --- / +++ headers if diff --git wasn't present.
         for m in _TRIPLE_DASH.finditer(diff_text):
             p = m.group(1).strip()
-            if p and p != "/dev/null" and p not in files:
-                files.append(p)
+            _append_unique(p)
         for m in _TRIPLE_PLUS.finditer(diff_text):
             p = m.group(1).strip()
-            if p and p != "/dev/null" and p not in files:
-                files.append(p)
+            _append_unique(p)
 
     return tuple(files)
 
@@ -104,7 +108,7 @@ def validate(
     diff_text: str,
     *,
     max_files_per_diff: int,
-    whitelist: tuple[str, ...],
+    whitelist: tuple[str, ...] | None,
     extra_protected: tuple[str, ...] = (),
 ) -> ValidationResult:
     if not diff_text or not diff_text.strip():
@@ -126,13 +130,14 @@ def validate(
         if _matches_any(f, protected):
             return ValidationResult(False, f"protected file touched: {f}", files)
 
-    whitelist_set = set(whitelist)
-    for f in files:
-        if f not in whitelist_set:
-            return ValidationResult(
-                False,
-                f"file {f!r} is not on the editable whitelist {sorted(whitelist_set)!r}",
-                files,
-            )
+    if whitelist is not None:
+        whitelist_set = set(whitelist)
+        for f in files:
+            if f not in whitelist_set:
+                return ValidationResult(
+                    False,
+                    f"file {f!r} is not on the editable whitelist {sorted(whitelist_set)!r}",
+                    files,
+                )
 
     return ValidationResult(True, None, files)

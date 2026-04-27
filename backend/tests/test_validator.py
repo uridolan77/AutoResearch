@@ -57,10 +57,25 @@ DIFF_NOT_WHITELISTED = """diff --git a/other.md b/other.md
 +B
 """
 
+DIFF_RENAME = """diff --git a/old_name.py b/new_name.py
+similarity index 100%
+rename from old_name.py
+rename to new_name.py
+--- a/old_name.py
++++ b/new_name.py
+@@ -1 +1 @@
+-print(1)
++print(2)
+"""
+
 
 def test_extract_files_git_header() -> None:
     assert extract_files(DIFF_ONE_FILE) == ("draft.md",)
     assert extract_files(DIFF_TWO_FILES) == ("draft.md", "notes.md")
+
+
+def test_extract_files_rename_counts_as_one_logical_file() -> None:
+    assert extract_files(DIFF_RENAME) == ("new_name.py",)
 
 
 def test_extract_files_handles_dev_null_for_creation() -> None:
@@ -115,4 +130,9 @@ def test_happy_path_passes() -> None:
 
 def test_two_files_under_higher_cap_passes() -> None:
     r = validate(DIFF_TWO_FILES, max_files_per_diff=5, whitelist=("draft.md", "notes.md"))
+    assert r.ok
+
+
+def test_whitelist_none_allows_multi_file_validation() -> None:
+    r = validate(DIFF_TWO_FILES, max_files_per_diff=5, whitelist=None)
     assert r.ok

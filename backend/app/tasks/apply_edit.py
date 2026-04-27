@@ -57,9 +57,8 @@ def _sanitize_diff(raw: str) -> str:
             break
     cleaned = "\n".join(lines[start:]).strip()
 
-    # Some models emit hunk bodies without the required leading prefix
-    # characters (" ", "+", "-", or "\\"). Fix up by prefixing a space for
-    # any line inside a hunk that lacks a prefix.
+    # Inside hunks, require valid line prefixes. Malformed hunks are rejected
+    # so we do not silently alter semantics before git apply sees the patch.
     out_lines: list[str] = []
     in_hunk = False
     for line in cleaned.splitlines():
@@ -75,7 +74,9 @@ def _sanitize_diff(raw: str) -> str:
             if line.startswith((" ", "+", "-", "\\")):
                 out_lines.append(line)
             else:
-                out_lines.append(" " + line)
+                raise ValueError(
+                    f"malformed unified diff: unprefixed hunk line {line!r}"
+                )
         else:
             out_lines.append(line)
 
@@ -137,8 +138,38 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
             experiment.validation_attempts = attempt
             db.commit()
 
-            experiment.diff_text = _sanitize_diff(experiment.diff_text or "")
-            db.commit()
+            try:
+                experiment.diff_text = _sanitize_diff(experiment.diff_text or "")
+                db.commit()
+            except ValueError as e:
+                last_reason = str(e)
+                journal_append(
+                    session_id,
+                    "validation_failed",
+                    {
+                        "experiment_id": experiment.id,
+                        "attempt": attempt,
+                        "reason": last_reason,
+                    },
+                )
+                if attempt == max_attempts:
+                    break
+                try:
+                    _propose_again(
+                        db,
+                        session,
+                        experiment,
+                        hint=f"validation failed: {last_reason}",
+                    )
+                except RuntimeError as e2:
+                    journal_append(
+                        session_id,
+                        "validation_retry_aborted",
+                        {"experiment_id": experiment.id, "reason": str(e2)},
+                    )
+                    last_reason = str(e2)
+                    break
+                continue
 
             v = validate(
                 experiment.diff_text or "",

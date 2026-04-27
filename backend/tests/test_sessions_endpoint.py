@@ -65,6 +65,42 @@ def test_start_session_enqueues_loop(db_factory, tmp_path) -> None:
     send_task.assert_called_with("autoresearch.loop", args=[sid])
 
 
+def test_start_session_returns_409_if_not_idle(db_factory, tmp_path) -> None:
+    Sm = db_factory
+    db = Sm()
+    ev = make_evaluator(db)
+    db.close()
+
+    with (
+        patch("app.api.routes.sessions.GitService") as git_cls,
+        patch("app.api.routes.sessions.celery_app.send_task") as send_task,
+    ):
+        git_cls.return_value.ensure_repo.return_value = None
+        git_cls.return_value.create_session_branch.return_value = ("session-x", tmp_path)
+
+        for client in _client(Sm):
+            r = client.post(
+                "/sessions",
+                json={
+                    "name": "s1",
+                    "folder_path": str(tmp_path),
+                    "target_file": "draft.md",
+                    "program_md": "x",
+                    "evaluator_id": ev.id,
+                },
+            )
+            assert r.status_code == 201
+            sid = r.json()["id"]
+
+            s1 = client.post(f"/sessions/{sid}/start")
+            assert s1.status_code == 202
+
+            s2 = client.post(f"/sessions/{sid}/start")
+            assert s2.status_code == 409
+
+    assert send_task.call_count == 1
+
+
 def test_patch_program_updates_program_md(db_factory) -> None:
     Sm = db_factory
     from tests.conftest import make_session
