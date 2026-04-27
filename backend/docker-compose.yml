@@ -8,13 +8,30 @@ services:
       timeout: 3s
       retries: 5
 
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: autoresearch
+      POSTGRES_PASSWORD: autoresearch
+      POSTGRES_DB: autoresearch
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autoresearch -d autoresearch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - ar_pg_data:/var/lib/postgresql/data
+
   migrate:
     build: .
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
-      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_DATABASE_URL: postgresql+psycopg2://autoresearch:autoresearch@postgres:5432/autoresearch
       AR_REDIS_URL: redis://redis:6379/0
       AR_DATA_DIR: /data
       AR_WORKTREE_ROOT: /data/worktrees
@@ -32,10 +49,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     environment:
-      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_DATABASE_URL: postgresql+psycopg2://autoresearch:autoresearch@postgres:5432/autoresearch
       AR_REDIS_URL: redis://redis:6379/0
       AR_DATA_DIR: /data
       AR_WORKTREE_ROOT: /data/worktrees
@@ -55,10 +74,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     environment:
-      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_DATABASE_URL: postgresql+psycopg2://autoresearch:autoresearch@postgres:5432/autoresearch
       AR_REDIS_URL: redis://redis:6379/0
       AR_DATA_DIR: /data
       AR_WORKTREE_ROOT: /data/worktrees
@@ -77,10 +98,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     environment:
-      AR_DATABASE_URL: sqlite:////data/autoresearch.db
+      AR_DATABASE_URL: postgresql+psycopg2://autoresearch:autoresearch@postgres:5432/autoresearch
       AR_REDIS_URL: redis://redis:6379/0
       AR_DATA_DIR: /data
       AR_WORKTREE_ROOT: /data/worktrees
@@ -94,3 +117,4 @@ services:
 
 volumes:
   ar_data:
+  ar_pg_data:

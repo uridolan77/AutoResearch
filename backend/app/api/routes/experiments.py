@@ -51,7 +51,11 @@ def _build_diff_view(diff_text: str | None) -> DiffViewResponse | None:
 
     for line in lines:
         if line.startswith("--- "):
+            # A second --- header means a new file begins — only render the first.
+            if old_path is not None:
+                break
             old_path = line[4:].strip()
+            in_hunk = False
             continue
         if line.startswith("+++ "):
             new_path = line[4:].strip()

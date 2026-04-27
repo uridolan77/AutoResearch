@@ -45,10 +45,13 @@ class AnthropicRouter(BaseLLMRouter):
         user: str,
         *,
         max_tokens: int,
+        temperature: float | None = None,
     ) -> LLMCallResult:
         cfg = self._routing_table.get(stage_name)
         if cfg is None:
             raise ValueError(f"Unknown LLM stage: {stage_name}")
+
+        effective_temperature = temperature if temperature is not None else cfg.temperature
 
         @retry(
             retry=retry_if_exception_type(_RETRYABLE),
@@ -61,7 +64,7 @@ class AnthropicRouter(BaseLLMRouter):
                 model=cfg.model,
                 system=system,
                 max_tokens=max_tokens,
-                temperature=cfg.temperature,
+                temperature=effective_temperature,
                 messages=[{"role": "user", "content": user}],
             )
 

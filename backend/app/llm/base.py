@@ -14,5 +14,6 @@ class BaseLLMRouter(ABC):
         user: str,
         *,
         max_tokens: int,
+        temperature: float | None = None,
     ) -> LLMCallResult: ...
 

@@ -24,7 +24,7 @@ import logging
 import re
 from pathlib import Path
 
-from app.agent.llm import JudgeClient
+from app.agent.llm import JudgeClient, estimate_tokens
 from app.evaluators.base import Evaluator, EvaluatorError, EvaluatorResult
 
 logger = logging.getLogger(__name__)
@@ -33,12 +33,17 @@ logger = logging.getLogger(__name__)
 _JUDGE_SYSTEM = """You are an impartial judge scoring a piece of work against a rubric.
 
 Read the rubric and the work, then output a single JSON object:
-  {"score": <number in [{lo}, {hi}]>, "rationale": "<one short sentence>"}
+  {{"score": <number in [{lo}, {hi}]>, "rationale": "<one short sentence>"}}
 
 Scoring rules:
   - Use the full range; do not cluster around the midpoint.
   - Do NOT explain at length — one sentence of rationale is enough.
   - Output JSON ONLY. No prose, no fences."""
+
+# Leave a buffer for the rubric and prompt boilerplate (~2 000 tokens) so we
+# don't hit the judge model's context limit on large target files.
+_CONTEXT_WINDOW_TOKENS = 120_000
+_TARGET_TOKEN_BUDGET = _CONTEXT_WINDOW_TOKENS - 2_000
 
 
 _SCORE_RE = re.compile(r'"score"\s*:\s*([-+]?\d+(?:\.\d+)?)')
@@ -63,6 +68,28 @@ class LLMJudgeEvaluator(Evaluator):
         rubric = (worktree_path / rubric_path).read_text(encoding="utf-8", errors="replace")
 
         system = _JUDGE_SYSTEM.format(lo=score_lo, hi=score_hi)
+
+        # Guard: if the combined payload would exceed the judge model's context
+        # window, truncate the target file content with a visible marker so the
+        # call still succeeds and the score reflects the visible portion.
+        overhead_tokens = estimate_tokens(system + rubric)
+        target_budget = _TARGET_TOKEN_BUDGET - overhead_tokens
+        if target_budget <= 0:
+            raise EvaluatorError(
+                "Rubric alone exceeds context window budget; shorten the rubric."
+            )
+        target_tokens = estimate_tokens(target)
+        if target_tokens > target_budget:
+            # Truncate by character ratio: chars ≈ tokens * 4
+            char_limit = target_budget * 4
+            target = target[:char_limit] + "\n\n[TRUNCATED — content exceeded context window]"
+            logger.warning(
+                "target_file %r truncated from ~%d to ~%d tokens for LLM judge",
+                target_file,
+                target_tokens,
+                target_budget,
+            )
+
         user = (
             f"## Rubric\n\n{rubric}\n\n---\n\n"
             f"## Work to score (`{target_file}`)\n\n{target}\n"

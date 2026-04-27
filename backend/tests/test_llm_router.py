@@ -76,7 +76,7 @@ def test_openai_router_normalizes_claude_models(monkeypatch: pytest.MonkeyPatch)
 class _DummyRouter:
     calls: list[str]
 
-    def call(self, stage_name: str, system: str, user: str, *, max_tokens: int) -> LLMCallResult:
+    def call(self, stage_name: str, system: str, user: str, *, max_tokens: int, temperature: float | None = None) -> LLMCallResult:
         self.calls.append(stage_name)
         return LLMCallResult(
             content=f"{stage_name}:{max_tokens}",

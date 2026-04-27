@@ -9,7 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AR_", env_file=".env", extra="ignore")
 
-    database_url: str = "sqlite:///./autoresearch.db"
+    # Production default is PostgreSQL. For local dev without Docker set:
+    #   AR_DATABASE_URL=sqlite:///./autoresearch.db
+    database_url: str = "postgresql+psycopg2://autoresearch:autoresearch@localhost:5432/autoresearch"
     redis_url: str = "redis://localhost:6379/0"
     data_dir: Path = Path("./data")
     worktree_root: Path = Path("./data/worktrees")

@@ -64,10 +64,13 @@ class OpenAIRouter(BaseLLMRouter):
         user: str,
         *,
         max_tokens: int,
+        temperature: float | None = None,
     ) -> LLMCallResult:
         cfg = self._routing_table.get(stage_name)
         if cfg is None:
             raise ValueError(f"Unknown LLM stage: {stage_name}")
+
+        effective_temperature = temperature if temperature is not None else cfg.temperature
 
         @retry(
             retry=retry_if_exception_type(_RETRYABLE),
@@ -78,7 +81,7 @@ class OpenAIRouter(BaseLLMRouter):
         def _call() -> openai.types.chat.ChatCompletion:
             return self._client.chat.completions.create(
                 model=cfg.model,
-                temperature=cfg.temperature,
+                temperature=effective_temperature,
                 max_tokens=max_tokens,
                 messages=[
                     {"role": "system", "content": system},

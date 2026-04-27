@@ -70,12 +70,12 @@ class ProposerClient:
         max_output_tokens: int,
         temperature: float = 0.3,
     ) -> LLMResult:
-        _ = temperature  # stage config owns temperature in router; keep signature stable
         result = _router().call(
             "autoresearch_proposer",
             system,
             user,
             max_tokens=max_output_tokens,
+            temperature=temperature,
         )
         return LLMResult(
             text=result.content,
@@ -100,12 +100,12 @@ class JudgeClient:
         max_output_tokens: int,
         temperature: float = 0.0,
     ) -> LLMResult:
-        _ = temperature  # stage config owns temperature in router; keep signature stable
         result = _router().call(
             "autoresearch_judge",
             system,
             user,
             max_tokens=max_output_tokens,
+            temperature=temperature,
         )
         return LLMResult(
             text=result.content,

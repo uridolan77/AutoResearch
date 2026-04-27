@@ -22,6 +22,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session as DbSession
 
+from app.core.config import get_settings
 from app.models import Experiment, Session
 from app.models.enums import Decision, ExperimentStatus
 from app.models.experiment import REJECTION_COMMENT_MAX_LEN
@@ -90,8 +91,18 @@ def _next_iteration(db: DbSession, session_id: str) -> int:
     return (last[0] + 1) if last else 1
 
 
-def _read_target(folder_path: str, target_file: str) -> str:
-    p = Path(folder_path) / target_file
+def _read_target(folder_path: str, target_file: str, session_id: str | None = None) -> str:
+    # Prefer the session worktree so the proposer sees the current committed
+    # state of the branch (including all previously kept edits).  Fall back to
+    # the bare repo root when the worktree hasn't been created yet.
+    base: Path | None = None
+    if session_id is not None:
+        worktree = Path(get_settings().worktree_root) / f"session-{session_id}"
+        if worktree.exists():
+            base = worktree
+    if base is None:
+        base = Path(folder_path)
+    p = base / target_file
     if not p.exists():
         return f"<target file missing at {p}>"
     return p.read_text(encoding="utf-8", errors="replace")
@@ -190,7 +201,7 @@ def build_context(
     user = USER_TEMPLATE.format(
         program_md=session.program_md,
         target_file=session.target_file,
-        target_contents=_read_target(session.folder_path, session.target_file),
+        target_contents=_read_target(session.folder_path, session.target_file, session.id),
         journal_tail=JOURNAL_TAIL,
         journal_block=journal_block,
         rej_tail=REJECTION_TAIL,
