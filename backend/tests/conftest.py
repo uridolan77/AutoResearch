@@ -9,6 +9,22 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+
+@pytest.fixture(autouse=True)
+def _clear_lru_caches():
+    """Reset lru_cache singletons between tests to prevent cache bleed."""
+    yield
+    try:
+        from app.agent.llm import _clear_router_cache
+        _clear_router_cache()
+    except Exception:
+        pass
+    try:
+        from app.core.config import get_settings
+        get_settings.cache_clear()
+    except Exception:
+        pass
+
 from app.core.db import Base
 from app.models import Evaluator, Experiment, Session
 from app.models.enums import (

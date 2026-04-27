@@ -49,6 +49,12 @@ def _router():
     return make_router()
 
 
+def _clear_router_cache() -> None:  # used by tests to reset between test cases
+    _router.cache_clear()
+    from app.core.config import get_settings
+    get_settings.cache_clear()
+
+
 class ProposerClient:
     """Claude Sonnet 4.5 — strongest code + prose editor at tolerable cost."""
 

@@ -64,7 +64,7 @@ def test_openai_router_normalizes_claude_models(monkeypatch: pytest.MonkeyPatch)
     class _FakeClient:
         chat = _FakeChat()
 
-    monkeypatch.setattr(oai_mod.openai, "OpenAI", lambda api_key: _FakeClient())
+    monkeypatch.setattr(oai_mod.openai, "OpenAI", lambda *a, **kw: _FakeClient())
 
     r = oai_mod.OpenAIRouter()
     out = r.call("autoresearch_proposer", "s", "u", max_tokens=10)

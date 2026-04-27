@@ -1,8 +1,9 @@
 from functools import lru_cache
 from pathlib import Path
-
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -27,6 +28,18 @@ class Settings(BaseSettings):
     validation_retry_max_default: int = 3
     max_files_per_diff_default: int = 1
     max_files_per_diff_ceiling: int = 5
+
+    @model_validator(mode="after")
+    def _validate_provider_keys(self) -> "Settings":
+        if self.llm_provider == "anthropic" and not self.anthropic_api_key:
+            raise ValueError(
+                "AR_ANTHROPIC_API_KEY is required when AR_LLM_PROVIDER=anthropic"
+            )
+        if self.llm_provider == "openai" and not self.openai_api_key:
+            raise ValueError(
+                "AR_OPENAI_API_KEY is required when AR_LLM_PROVIDER=openai"
+            )
+        return self
 
     def model_post_init(self, _ctx) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)

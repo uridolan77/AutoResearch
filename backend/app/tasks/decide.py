@@ -73,7 +73,11 @@ def _prune_old_worktrees(db, session: Session, current_iteration: int) -> int:
     repo_path = Path(session.folder_path)
     pruned = 0
     for exp in stale:
-        wt_path = settings.worktree_root / f"session-{session.id}" / "exp" / exp.id
+        wt_path = (
+            Path(exp.worktree_path)
+            if exp.worktree_path
+            else settings.worktree_root / f"session-{session.id}" / "exp" / exp.id
+        )
         try:
             gitsvc.remove_worktree(repo_path, wt_path)
         except GitError as e:
@@ -89,7 +93,7 @@ def decide(self, experiment_id: str) -> dict:
     db = SessionLocal()
     try:
         # Atomic idempotency guard: only the first caller transitions the row.
-        # We move status out of awaiting_review immediately; everything else is
+        # We move status to `deciding` immediately; everything else is
         # derived from the stored decision.
         updated = (
             db.query(Experiment)
@@ -98,7 +102,7 @@ def decide(self, experiment_id: str) -> dict:
                 Experiment.status == ExperimentStatus.awaiting_review,
             )
             .update(
-                {Experiment.status: ExperimentStatus.running},
+                {Experiment.status: ExperimentStatus.deciding},
                 synchronize_session=False,
             )
         )
@@ -166,7 +170,12 @@ def decide(self, experiment_id: str) -> dict:
                 try:
                     settings = get_settings()
                     gitsvc = GitService(worktree_root=settings.worktree_root)
-                    wt_path = settings.worktree_root / f"session-{session.id}" / "exp" / exp.id
+                    # Prefer stored path; fall back to convention for old rows.
+                    wt_path = (
+                        Path(exp.worktree_path)
+                        if exp.worktree_path
+                        else settings.worktree_root / f"session-{session.id}" / "exp" / exp.id
+                    )
                     gitsvc.reset_hard(wt_path, exp.parent_commit)
                 except GitError as e:
                     logger.error("decide(%s): reset_hard failed: %s", experiment_id, e)

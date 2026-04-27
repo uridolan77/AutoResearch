@@ -1,16 +1,36 @@
 from __future__ import annotations
 
+import logging
+
 import anthropic
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.core.config import get_settings
 from app.llm.base import BaseLLMRouter
 from app.llm.router import LLMCallResult, ModelConfig
 
+logger = logging.getLogger(__name__)
+
+_RETRYABLE = (
+    anthropic.APIConnectionError,
+    anthropic.APITimeoutError,
+    anthropic.RateLimitError,
+    anthropic.InternalServerError,
+)
+
 
 class AnthropicRouter(BaseLLMRouter):
     def __init__(self, *, overrides: dict[str, ModelConfig] | None = None) -> None:
         settings = get_settings()
-        self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        self._client = anthropic.Anthropic(
+            api_key=settings.anthropic_api_key,
+            timeout=30.0,
+        )
         self._routing_table: dict[str, ModelConfig] = {
             "autoresearch_proposer": ModelConfig(model=settings.proposer_model, temperature=0.3),
             "autoresearch_judge": ModelConfig(model=settings.judge_model, temperature=0.0),
@@ -30,13 +50,22 @@ class AnthropicRouter(BaseLLMRouter):
         if cfg is None:
             raise ValueError(f"Unknown LLM stage: {stage_name}")
 
-        resp = self._client.messages.create(
-            model=cfg.model,
-            system=system,
-            max_tokens=max_tokens,
-            temperature=cfg.temperature,
-            messages=[{"role": "user", "content": user}],
+        @retry(
+            retry=retry_if_exception_type(_RETRYABLE),
+            wait=wait_exponential(multiplier=1, min=2, max=60),
+            stop=stop_after_attempt(3),
+            reraise=True,
         )
+        def _call() -> anthropic.types.Message:
+            return self._client.messages.create(
+                model=cfg.model,
+                system=system,
+                max_tokens=max_tokens,
+                temperature=cfg.temperature,
+                messages=[{"role": "user", "content": user}],
+            )
+
+        resp = _call()
         text = "".join(
             block.text for block in resp.content if getattr(block, "type", None) == "text"
         )

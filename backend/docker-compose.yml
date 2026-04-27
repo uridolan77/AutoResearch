@@ -2,8 +2,6 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports:
-      - "16379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -49,8 +47,7 @@ services:
       - "8000:8000"
     volumes:
       - ar_data:/data
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 
   worker:
     build: .

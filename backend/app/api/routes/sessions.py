@@ -34,7 +34,7 @@ def _ws_event_for_experiment(exp: Experiment | None) -> tuple[str, dict[str, Any
     if exp is None:
         return None
 
-    if exp.status in (ExperimentStatus.pending, ExperimentStatus.running):
+    if exp.status in (ExperimentStatus.pending, ExperimentStatus.running, ExperimentStatus.deciding):
         return ("experiment.running", {"id": exp.id, "iteration": exp.iteration})
     if exp.status == ExperimentStatus.duplicate:
         return ("experiment.duplicate", {"id": exp.id, "matched_hash": exp.diff_hash})
@@ -102,6 +102,7 @@ async def session_events(websocket: WebSocket, session_id: str) -> None:
             await websocket.send_json({"type": event_type, "payload": payload})
 
         last_session_status = session.status
+        last_token_warning_sent = False  # tracks whether we've already emitted the 80% warning
         last_experiment_signature = (
             latest.id if latest else None,
             latest.status if latest else None,
@@ -128,6 +129,24 @@ async def session_events(websocket: WebSocket, session_id: str) -> None:
                 if session.status in (SessionStatus.draining, SessionStatus.stopped, SessionStatus.complete):
                     await websocket.send_json({"type": "session.stopped", "payload": {"reason": session.status.value}})
                 last_session_status = session.status
+
+            # Token budget warning at 80% of session cap (one-shot).
+            if (
+                not last_token_warning_sent
+                and session.token_cap_session > 0
+                and (session.tokens_used or 0) >= session.token_cap_session * 0.8
+            ):
+                await websocket.send_json(
+                    {
+                        "type": "session.token_warning",
+                        "payload": {
+                            "id": session.id,
+                            "tokens_used": session.tokens_used,
+                            "token_cap_session": session.token_cap_session,
+                        },
+                    }
+                )
+                last_token_warning_sent = True
 
             latest = (
                 db.query(Experiment)

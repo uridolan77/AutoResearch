@@ -152,7 +152,17 @@ export interface ReviewResponse {
   queued_decide: boolean
 }
 
-export interface SessionEvent {
-  type: string
-  payload: Record<string, unknown>
-}
+export type SessionEvent =
+  | { type: 'session.status'; payload: { id: string; status: string } }
+  | { type: 'session.paused'; payload: { id: string } }
+  | { type: 'session.stopped'; payload: { reason: string } }
+  | { type: 'session.token_warning'; payload: { id: string; tokens_used: number; token_cap_session: number } }
+  | { type: 'experiment.running'; payload: { id: string; iteration: number } }
+  | { type: 'experiment.duplicate'; payload: { id: string; matched_hash: string | null } }
+  | { type: 'experiment.scored'; payload: { id: string; score_before: number | null; score_after: number | null; delta: number | null } }
+  | { type: 'experiment.awaiting_review'; payload: { id: string; delta: number | null; score_before: number | null; score_after: number | null } }
+  | { type: 'experiment.kept'; payload: { id: string; commit_sha: string | null } }
+  | { type: 'experiment.reverted'; payload: { id: string; decision: string | null; reason: string | null } }
+  | { type: 'experiment.failed'; payload: { id: string; reason: string | null } }
+  | { type: 'error'; payload: { detail: string } }
+  | { type: string; payload: Record<string, unknown> }

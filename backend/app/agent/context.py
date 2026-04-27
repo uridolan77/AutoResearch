@@ -24,10 +24,11 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.models import Experiment, Session
 from app.models.enums import Decision, ExperimentStatus
+from app.models.experiment import REJECTION_COMMENT_MAX_LEN
 
 JOURNAL_TAIL = 10
 REJECTION_TAIL = 5
-REJECTION_MAX_CHARS = 500
+REJECTION_MAX_CHARS = REJECTION_COMMENT_MAX_LEN
 
 
 @dataclass

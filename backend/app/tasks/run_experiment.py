@@ -134,8 +134,8 @@ def run_experiment(self, ctx: dict[str, Any]) -> dict[str, Any]:
 @celery_app.task(name="autoresearch.on_chain_error", bind=True)
 def on_chain_error(self, ctx: dict[str, Any] | None = None, exc: object | None = None, tb: object | None = None) -> None:
     """link_error handler — marks the in-flight experiment failed on any
-    unhandled exception in the chain. Re-enqueueing the loop is the
-    responsibility of decide (Days 7-8); for now we just journal and mark.
+    unhandled exception in the chain, then re-enqueues the loop so a daemon
+    hiccup doesn't permanently wedge the session.
     """
     ctx = ctx or {}
     session_id = ctx.get("session_id")
@@ -166,3 +166,9 @@ def on_chain_error(self, ctx: dict[str, Any] | None = None, exc: object | None =
         )
     finally:
         db.close()
+
+    # Re-enqueue loop so the session can continue after a transient crash.
+    try:
+        celery_app.send_task("autoresearch.loop", args=[session_id])
+    except Exception:
+        logger.exception("on_chain_error: failed to re-enqueue loop for session %s", session_id)

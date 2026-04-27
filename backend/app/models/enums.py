@@ -19,6 +19,7 @@ class ReviewMode(str, enum.Enum):
 class ExperimentStatus(str, enum.Enum):
     pending = "pending"
     running = "running"
+    deciding = "deciding"
     scored = "scored"
     awaiting_review = "awaiting_review"
     kept = "kept"

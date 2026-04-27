@@ -123,7 +123,9 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
         if session is None or experiment is None:
             return short_circuit(ctx, "session or experiment missing")
 
-        whitelist = (session.target_file,)
+        # When max_files_per_diff==1 enforce exact single-file whitelist.
+        # When >1, only the max_files_per_diff count constraint applies.
+        whitelist = (session.target_file,) if session.max_files_per_diff == 1 else None
         max_attempts = session.validation_retry_max
         repo_path = Path(session.folder_path)
         settings = get_settings()
@@ -284,6 +286,7 @@ def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
         experiment.parent_commit = parent_sha
         experiment.experiment_commit = commit_sha
         experiment.branch_ref = exp_branch
+        experiment.worktree_path = str(exp_path)
         db.commit()
 
         journal_append(
