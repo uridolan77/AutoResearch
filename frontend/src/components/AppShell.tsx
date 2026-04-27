@@ -36,7 +36,7 @@ export function AppShell({ children }: PropsWithChildren) {
         </nav>
         {!sidebarCollapsed && (
           <p className="sidebar-note">
-            MVP covers ingest, sessions, live detail, and review. Live updates use polling until the WebSocket stream lands.
+            MVP covers ingest, sessions, live detail, and review. Live updates use WebSocket with polling fallback.
           </p>
         )}
       </aside>

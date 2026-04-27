@@ -3,6 +3,7 @@ export type SessionStatus = 'idle' | 'running' | 'paused' | 'draining' | 'stoppe
 export type ExperimentStatus =
   | 'pending'
   | 'running'
+  | 'deciding'
   | 'scored'
   | 'awaiting_review'
   | 'kept'
@@ -153,7 +154,7 @@ export interface ReviewResponse {
 }
 
 export type SessionEvent =
-  | { type: 'session.status'; payload: { id: string; status: string } }
+  | { type: 'session.status'; payload: { id: string; status: SessionStatus } }
   | { type: 'session.paused'; payload: { id: string } }
   | { type: 'session.stopped'; payload: { reason: string } }
   | { type: 'session.token_warning'; payload: { id: string; tokens_used: number; token_cap_session: number } }
@@ -165,4 +166,3 @@ export type SessionEvent =
   | { type: 'experiment.reverted'; payload: { id: string; decision: string | null; reason: string | null } }
   | { type: 'experiment.failed'; payload: { id: string; reason: string | null } }
   | { type: 'error'; payload: { detail: string } }
-  | { type: string; payload: Record<string, unknown> }

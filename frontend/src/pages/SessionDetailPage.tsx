@@ -20,8 +20,36 @@ export function SessionDetailPage() {
     if (!event?.type) return
     void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(sessionId) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.experiments(sessionId) })
-    if (event.type === 'session.token_warning') {
-      toast.warning('Session token usage crossed warning threshold.')
+    if (event.type === 'session.status') {
+      toast.info(`Session status: ${event.payload.status.replace(/_/g, ' ')}`)
+    } else if (event.type === 'session.paused') {
+      toast.info('Session paused.')
+    } else if (event.type === 'session.token_warning') {
+      toast.warning('Token budget at 80% - session will stop when cap is reached.')
+    } else if (event.type === 'experiment.running') {
+      toast.info(`Iteration ${event.payload.iteration} is running...`)
+    } else if (event.type === 'experiment.scored') {
+      const delta = event.payload.delta
+      if (delta !== null && delta !== undefined) {
+        toast.info(`Scored: delta ${(delta as number) >= 0 ? '+' : ''}${delta}`)
+      }
+    } else if (event.type === 'experiment.awaiting_review') {
+      const delta = event.payload.delta
+      toast.warning(
+        `Awaiting review - delta ${delta !== null && delta !== undefined ? `${(delta as number) >= 0 ? '+' : ''}${delta}` : 'n/a'}`,
+      )
+    } else if (event.type === 'experiment.kept') {
+      toast.success('Change kept.')
+    } else if (event.type === 'experiment.reverted') {
+      toast.info(`Reverted${event.payload.reason ? `: ${event.payload.reason}` : '.'}`)
+    } else if (event.type === 'experiment.failed') {
+      toast.error(`Experiment failed${event.payload.reason ? `: ${event.payload.reason}` : '.'}`)
+    } else if (event.type === 'experiment.duplicate') {
+      toast.info('Duplicate diff detected - skipping iteration.')
+    } else if (event.type === 'session.stopped') {
+      toast.info(`Session ${event.payload.reason}.`)
+    } else if (event.type === 'error') {
+      toast.error(event.payload.detail)
     }
   })
 

@@ -328,6 +328,7 @@ small {
 }
 
 .status-running,
+.status-deciding,
 .status-kept {
   background: rgba(110, 196, 188, 0.18);
 }
