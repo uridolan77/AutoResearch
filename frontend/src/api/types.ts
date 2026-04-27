@@ -87,8 +87,11 @@ export interface CreateSessionResponse {
 }
 
 export interface EstimateResponse {
-  estimated_tokens: number
-  [key: string]: unknown
+  estimated_input_tokens: number
+  estimated_max_output_tokens: number
+  estimated_total_tokens: number
+  token_cap_iter?: number
+  within_cap?: boolean
 }
 
 export interface ExperimentSummary {
@@ -130,6 +133,11 @@ export interface ExperimentDetail extends ExperimentSummary {
   experiment_commit: string | null
   branch_ref: string | null
   diff_text: string | null
+  diff_view: {
+    file_path: string | null
+    old_text: string
+    new_text: string
+  } | null
   diff_hash: string | null
   validation_attempts: number
   rejection_comment: string | null
@@ -142,4 +150,9 @@ export interface ReviewResponse {
   status: ExperimentStatus
   decision: string
   queued_decide: boolean
+}
+
+export interface SessionEvent {
+  type: string
+  payload: Record<string, unknown>
 }

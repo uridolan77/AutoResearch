@@ -12,11 +12,13 @@ that races past the conditional update is also safe.
 from __future__ import annotations
 
 import logging
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DbSession
 
 from app.api.schemas import (
+    DiffViewResponse,
     ExperimentDetailResponse,
     RejectionHistoryEntryResponse,
     ReviewRequest,
@@ -31,6 +33,55 @@ from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/experiments", tags=["experiments"])
+
+
+def _build_diff_view(diff_text: str | None) -> DiffViewResponse | None:
+    if not diff_text:
+        return None
+
+    lines = diff_text.splitlines()
+    if not lines:
+        return None
+
+    old_path: str | None = None
+    new_path: str | None = None
+    old_lines: list[str] = []
+    new_lines: list[str] = []
+    in_hunk = False
+
+    for line in lines:
+        if line.startswith("--- "):
+            old_path = line[4:].strip()
+            continue
+        if line.startswith("+++ "):
+            new_path = line[4:].strip()
+            continue
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if not in_hunk:
+            continue
+
+        if line.startswith("+") and not line.startswith("+++"):
+            new_lines.append(line[1:])
+        elif line.startswith("-") and not line.startswith("---"):
+            old_lines.append(line[1:])
+        elif line.startswith(" "):
+            content = line[1:]
+            old_lines.append(content)
+            new_lines.append(content)
+
+    file_path = None
+    for candidate in (new_path, old_path):
+        if candidate and candidate not in ("/dev/null", "a/dev/null", "b/dev/null"):
+            file_path = re.sub(r"^[ab]/", "", candidate)
+            break
+
+    return DiffViewResponse(
+        file_path=file_path,
+        old_text="\n".join(old_lines),
+        new_text="\n".join(new_lines),
+    )
 
 
 @router.get("/{experiment_id}", response_model=ExperimentDetailResponse)
@@ -62,6 +113,7 @@ def get_experiment(
         branch_ref=exp.branch_ref,
         status=exp.status.value,
         diff_text=exp.diff_text,
+        diff_view=_build_diff_view(exp.diff_text),
         diff_hash=exp.diff_hash,
         validation_attempts=exp.validation_attempts,
         score_before=exp.score_before,

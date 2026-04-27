@@ -15,6 +15,7 @@ app.include_router(experiments.router)
 app.include_router(folders.router)
 app.include_router(evaluators.router)
 app.include_router(sessions.router)
+app.include_router(sessions.ws_router)
 app.include_router(estimate.router)
 
 

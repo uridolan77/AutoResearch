@@ -51,7 +51,7 @@ export function HomePage() {
         target_file: targetFile,
       }),
     onSuccess: (data) => {
-      setEstimation(`${Number(data.estimated_tokens ?? 0).toLocaleString()} estimated tokens / iteration`)
+      setEstimation(`${Number(data.estimated_total_tokens).toLocaleString()} estimated tokens / iteration`)
     },
   })
 

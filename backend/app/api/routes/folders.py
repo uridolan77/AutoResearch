@@ -3,6 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DbSession
 
+from app.api.schemas import (
+    FolderIngestRequest,
+    FolderIngestResponse,
+    FolderTargetsResponse,
+)
 from app.core.db import get_db
 from app.folders import ingest_folder, suggest_targets
 from app.models import Folder
@@ -12,10 +17,14 @@ router = APIRouter(prefix="/folders", tags=["folders"])
 
 @router.post(
     "/ingest",
+    response_model=FolderIngestResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def ingest(body: dict, db: DbSession = Depends(get_db)) -> dict:
-    path_or_url = (body.get("path_or_url") or "").strip()
+def ingest(
+    body: FolderIngestRequest,
+    db: DbSession = Depends(get_db),
+) -> FolderIngestResponse:
+    path_or_url = body.path_or_url.strip()
     if not path_or_url:
         raise HTTPException(status_code=422, detail="path_or_url is required")
     try:
@@ -27,18 +36,18 @@ def ingest(body: dict, db: DbSession = Depends(get_db)) -> dict:
     db.add(row)
     db.commit()
     db.refresh(row)
-    return {
-        "folder_id": row.id,
-        "folder_path": row.folder_path,
-        "is_git_clone": row.is_git_clone,
-        "original": row.original,
-    }
+    return FolderIngestResponse(
+        folder_id=row.id,
+        folder_path=row.folder_path,
+        is_git_clone=row.is_git_clone,
+        original=row.original,
+    )
 
 
 @router.get("/{folder_id}/targets")
-def targets(folder_id: str, db: DbSession = Depends(get_db)) -> dict:
+def targets(folder_id: str, db: DbSession = Depends(get_db)) -> FolderTargetsResponse:
     row = db.get(Folder, folder_id)
     if row is None:
         raise HTTPException(status_code=404, detail="folder not found")
-    return {"folder_id": row.id, "targets": suggest_targets(row.folder_path)}
+    return FolderTargetsResponse(folder_id=row.id, targets=suggest_targets(row.folder_path))
 

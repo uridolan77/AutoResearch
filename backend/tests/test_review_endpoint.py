@@ -176,6 +176,16 @@ def test_get_experiment_detail_returns_runs_and_rejection_history(db_factory) ->
         exit_code=0,
     )
     db.add(run)
+    exp.diff_text = "\n".join(
+        [
+            "--- a/draft.md",
+            "+++ b/draft.md",
+            "@@ -1,2 +1,2 @@",
+            "-old line",
+            "+new line",
+            " shared line",
+        ]
+    )
     db.commit()
     db.refresh(exp)
 
@@ -188,3 +198,6 @@ def test_get_experiment_detail_returns_runs_and_rejection_history(db_factory) ->
     assert body["runs"][0]["stdout_path"] == "/tmp/stdout.log"
     assert body["rejection_history"][0]["id"] == exp.id or body["rejection_history"][0]["id"] == old_rejected.id
     assert any(entry["rejection_comment"] == "avoid broad rewrite" for entry in body["rejection_history"])
+    assert body["diff_view"]["file_path"] == "draft.md"
+    assert "old line" in body["diff_view"]["old_text"]
+    assert "new line" in body["diff_view"]["new_text"]

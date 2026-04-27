@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import ReactDiffViewer from 'react-diff-viewer-continued'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ApiError } from '../api/client'
@@ -111,7 +112,19 @@ export function ExperimentReviewPage() {
         </div>
 
         <div className="diff-panel">
-          <pre>{experiment.diff_text ?? 'No diff recorded.'}</pre>
+          {experiment.diff_view ? (
+            <ReactDiffViewer
+              oldValue={experiment.diff_view.old_text}
+              newValue={experiment.diff_view.new_text}
+              splitView
+              hideLineNumbers={false}
+              showDiffOnly={false}
+              leftTitle="Before"
+              rightTitle="After"
+            />
+          ) : (
+            <pre>{experiment.diff_text ?? 'No diff recorded.'}</pre>
+          )}
         </div>
       </section>
 

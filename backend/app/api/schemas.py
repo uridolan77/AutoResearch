@@ -1,7 +1,7 @@
 """Pydantic request/response models for the API surface."""
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -70,6 +70,75 @@ class PatchProgramResponse(BaseModel):
     program_md: str
 
 
+class FolderIngestRequest(BaseModel):
+    path_or_url: str
+
+
+class FolderIngestResponse(BaseModel):
+    folder_id: str
+    folder_path: str
+    is_git_clone: bool
+    original: str
+
+
+class FolderTargetsResponse(BaseModel):
+    folder_id: str
+    targets: list[str]
+
+
+class EvaluatorResponse(BaseModel):
+    id: str
+    name: str
+    type: str
+    config: dict[str, Any]
+    metric_name: str
+    direction: str
+    timeout_s: int
+    baseline_required: bool
+    network_mode: str
+    network_allow: list[str] | None
+    secret_refs: list[str] | None
+
+
+class CreateEvaluatorRequest(BaseModel):
+    name: str
+    type: str
+    config: dict[str, Any]
+    metric_name: str
+    direction: str
+    timeout_s: int = 600
+    baseline_required: bool = True
+    network_mode: str = "none"
+    network_allow: list[str] | None = None
+    secret_refs: list[str] | None = None
+
+
+class CreateEvaluatorResponse(BaseModel):
+    id: str
+
+
+class EstimateRequest(BaseModel):
+    program_md: str = ""
+    folder_path: str
+    target_file: str
+    max_files_per_diff: int = 1
+    token_cap_iter: int = 100_000
+
+
+class EstimateResponse(BaseModel):
+    estimated_input_tokens: int
+    estimated_max_output_tokens: int
+    estimated_total_tokens: int
+    token_cap_iter: int | None = None
+    within_cap: bool | None = None
+
+
+class DiffViewResponse(BaseModel):
+    file_path: str | None
+    old_text: str
+    new_text: str
+
+
 class RunSummaryResponse(BaseModel):
     id: str
     worker_id: str | None
@@ -113,6 +182,7 @@ class ExperimentDetailResponse(BaseModel):
     branch_ref: str | None
     status: str
     diff_text: str | None
+    diff_view: DiffViewResponse | None
     diff_hash: str | None
     validation_attempts: int
     score_before: float | None

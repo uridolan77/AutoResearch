@@ -376,6 +376,16 @@ small {
   word-break: break-word;
 }
 
+.diff-panel table {
+  width: 100%;
+}
+
+.diff-panel table,
+.diff-panel td,
+.diff-panel tr {
+  background: transparent;
+}
+
 .loading-block,
 .crash-shell {
   min-height: 220px;

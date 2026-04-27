@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import type { SessionEvent } from '../api/types'
 import { queryKeys } from '../api/queryKeys'
 import { getSession, listSessionExperiments, patchProgram, sessionAction } from '../api/service'
 import { LoadingBlock } from '../components/LoadingBlock'
 import { StatusBadge } from '../components/StatusBadge'
 import { TokenBar } from '../components/TokenBar'
+import { useSessionWebSocket } from '../hooks/useSessionWebSocket'
 
 export function SessionDetailPage() {
   const params = useParams<{ sessionId: string }>()
@@ -14,18 +16,27 @@ export function SessionDetailPage() {
   const queryClient = useQueryClient()
   const [draftProgram, setDraftProgram] = useState('')
 
+  const { connected: wsConnected } = useSessionWebSocket(sessionId, (event: SessionEvent) => {
+    if (!event?.type) return
+    void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(sessionId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.experiments(sessionId) })
+    if (event.type === 'session.token_warning') {
+      toast.warning('Session token usage crossed warning threshold.')
+    }
+  })
+
   const sessionQuery = useQuery({
     queryKey: queryKeys.sessions.detail(sessionId),
     queryFn: () => getSession(sessionId),
     enabled: Boolean(sessionId),
-    refetchInterval: 3_000,
+    refetchInterval: wsConnected ? 10_000 : 3_000,
   })
 
   const experimentsQuery = useQuery({
     queryKey: queryKeys.sessions.experiments(sessionId),
     queryFn: () => listSessionExperiments(sessionId),
     enabled: Boolean(sessionId),
-    refetchInterval: 3_000,
+    refetchInterval: wsConnected ? 10_000 : 3_000,
   })
 
   const actionMutation = useMutation({
@@ -94,6 +105,10 @@ export function SessionDetailPage() {
           <div>
             <span className="meta-label">Current experiment</span>
             <strong>{currentExperiment ? `#${currentExperiment.iteration}` : 'none yet'}</strong>
+          </div>
+          <div>
+            <span className="meta-label">Live stream</span>
+            <strong>{wsConnected ? 'connected' : 'polling fallback'}</strong>
           </div>
         </div>
 
