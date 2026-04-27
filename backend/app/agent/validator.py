@@ -81,7 +81,6 @@ def extract_files(diff_text: str) -> tuple[str, ...]:
             _append_unique(b)
             continue
         _append_unique(a)
-        _append_unique(b)
 
     if not files:
         # Fall back to --- / +++ headers if diff --git wasn't present.

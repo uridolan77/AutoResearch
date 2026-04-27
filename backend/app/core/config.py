@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     validation_retry_max_default: int = 3
     max_files_per_diff_default: int = 1
     max_files_per_diff_ceiling: int = 5
+    target_max_chars: int = 200_000
 
     @model_validator(mode="after")
     def _validate_provider_keys(self) -> "Settings":

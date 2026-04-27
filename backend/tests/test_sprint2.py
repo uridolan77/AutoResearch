@@ -1,4 +1,4 @@
-"""Sprint 2 regression tests.
+﻿"""Sprint 2 regression tests.
 
 Covers:
   S2-2  temperature is forwarded to the router (not silently dropped)
@@ -311,6 +311,7 @@ class TestReadTargetWorktree:
         # Patch settings to point worktree_root at our tmp location.
         fake_settings = MagicMock()
         fake_settings.worktree_root = worktree_root
+        fake_settings.target_max_chars = 200_000
         monkeypatch.setattr(ctx_mod, "get_settings", lambda: fake_settings)
 
         result = ctx_mod._read_target(str(repo_root), "target.md", session_id="abc123")
@@ -331,11 +332,12 @@ class TestReadTargetWorktree:
 
         fake_settings = MagicMock()
         fake_settings.worktree_root = worktree_root
+        fake_settings.target_max_chars = 200_000
         monkeypatch.setattr(ctx_mod, "get_settings", lambda: fake_settings)
 
         result = ctx_mod._read_target(str(repo_root), "target.md", session_id="missing-session")
         assert result == "repo root version\n"
-
+        
     def test_falls_back_when_no_session_id(self, tmp_path: Path) -> None:
         from app.agent import context as ctx_mod
 

@@ -17,6 +17,7 @@ rather than re-emitting the same shape.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,6 +31,8 @@ from app.models.experiment import REJECTION_COMMENT_MAX_LEN
 JOURNAL_TAIL = 10
 REJECTION_TAIL = 5
 REJECTION_MAX_CHARS = REJECTION_COMMENT_MAX_LEN
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -105,7 +108,14 @@ def _read_target(folder_path: str, target_file: str, session_id: str | None = No
     p = base / target_file
     if not p.exists():
         return f"<target file missing at {p}>"
-    return p.read_text(encoding="utf-8", errors="replace")
+    text = p.read_text(encoding="utf-8", errors="replace")
+    limit = get_settings().target_max_chars
+    if len(text) > limit:
+        logger.warning(
+            "_read_target: %s is %d chars, truncating to %d", p, len(text), limit
+        )
+        text = text[:limit] + f"\n[TARGET TRUNCATED: {len(text)} chars total, showing first {limit}]"
+    return text
 
 
 SYSTEM_PROMPT = """You are an autonomous editor running inside an autoresearch ratchet loop.

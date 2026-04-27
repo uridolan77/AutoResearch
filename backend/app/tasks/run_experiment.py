@@ -36,7 +36,14 @@ def _run_dir(session_id: str, run_id: str) -> Path:
     return p
 
 
-@celery_app.task(name="autoresearch.run_experiment", bind=True)
+@celery_app.task(
+    name="autoresearch.run_experiment",
+    bind=True,
+    autoretry_for=(OSError, ConnectionError),
+    max_retries=3,
+    default_retry_delay=5,
+    retry_backoff=True,
+)
 def run_experiment(self, ctx: ChainContext) -> ChainContext:
     if ctx.get("done"):
         return ctx

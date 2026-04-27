@@ -21,6 +21,7 @@ class CreateSessionRequest(BaseModel):
     review_timeout_hours: int = 48
     worktree_prune_window: int = 10
     validation_retry_max: int = 3
+    max_iterations: int = 0
 
 
 class CreateSessionResponse(BaseModel):
@@ -50,6 +51,7 @@ class SessionDetailResponse(BaseModel):
     review_timeout_hours: int
     worktree_prune_window: int
     validation_retry_max: int
+    max_iterations: int
     status: str
     tokens_used: int
     session_branch: str | None

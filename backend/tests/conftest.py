@@ -91,6 +91,7 @@ def make_session(
     review_timeout_hours: int = 48,
     worktree_prune_window: int = 10,
     direction: MetricDirection = MetricDirection.maximize,
+    max_iterations: int = 0,
 ) -> Session:
     ev = make_evaluator(db, direction=direction)
     s = Session(
@@ -107,6 +108,7 @@ def make_session(
         review_timeout_hours=review_timeout_hours,
         worktree_prune_window=worktree_prune_window,
         validation_retry_max=3,
+        max_iterations=max_iterations,
         status=status,
         tokens_used=tokens_used,
     )

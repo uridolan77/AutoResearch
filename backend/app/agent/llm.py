@@ -45,8 +45,19 @@ def estimate_tokens(text: str, model: str = "gpt-4o-mini") -> int:
 
 
 @lru_cache
-def _router():
+def _router(_settings_hash: int = 0):
     return make_router()
+
+
+def _router_for_settings():
+    """Return the cached router, keyed on a hash of the current API keys.
+
+    When keys or the provider change (e.g. key rotation without a restart),
+    the cache entry is automatically invalidated and a fresh router is built.
+    """
+    s = get_settings()
+    key = hash((s.anthropic_api_key, s.openai_api_key, s.llm_provider))
+    return _router(key)
 
 
 def _clear_router_cache() -> None:  # used by tests to reset between test cases
@@ -58,10 +69,9 @@ def _clear_router_cache() -> None:  # used by tests to reset between test cases
 class ProposerClient:
     """Claude Sonnet 4.5 — strongest code + prose editor at tolerable cost."""
 
-    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+    def __init__(self, model: str | None = None) -> None:
         settings = get_settings()
         self.model = model or settings.proposer_model
-        self._api_key = api_key
 
     def complete(
         self,
@@ -70,7 +80,7 @@ class ProposerClient:
         max_output_tokens: int,
         temperature: float = 0.3,
     ) -> LLMResult:
-        result = _router().call(
+        result = _router_for_settings().call(
             "autoresearch_proposer",
             system,
             user,
@@ -88,10 +98,9 @@ class ProposerClient:
 class JudgeClient:
     """GPT-4o-mini — different provider for evaluator decorrelation."""
 
-    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+    def __init__(self, model: str | None = None) -> None:
         settings = get_settings()
         self.model = model or settings.judge_model
-        self._api_key = api_key
 
     def complete(
         self,
@@ -100,7 +109,7 @@ class JudgeClient:
         max_output_tokens: int,
         temperature: float = 0.0,
     ) -> LLMResult:
-        result = _router().call(
+        result = _router_for_settings().call(
             "autoresearch_judge",
             system,
             user,

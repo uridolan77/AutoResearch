@@ -229,6 +229,7 @@ def create_session(
         review_timeout_hours=int(payload.review_timeout_hours),
         worktree_prune_window=int(payload.worktree_prune_window),
         validation_retry_max=int(payload.validation_retry_max),
+        max_iterations=int(payload.max_iterations),
         status=SessionStatus.idle,
         tokens_used=0,
     )
@@ -292,6 +293,7 @@ def get_session(
         review_timeout_hours=s.review_timeout_hours,
         worktree_prune_window=s.worktree_prune_window,
         validation_retry_max=s.validation_retry_max,
+        max_iterations=s.max_iterations,
         status=s.status.value,
         tokens_used=s.tokens_used,
         session_branch=s.session_branch,

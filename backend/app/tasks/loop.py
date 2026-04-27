@@ -7,7 +7,8 @@ conditions in one place:
     1. session.status not in {running, idle}              -> stop
     2. tokens_used >= token_cap_session                   -> drain + stop
     3. wall_clock_budget_s elapsed since session start    -> stop
-    4. otherwise                                          -> enqueue plan
+    4. max_iterations reached (0 = unlimited)             -> stop
+    5. otherwise                                          -> enqueue plan
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from celery import chain
 
 from app.core.db import SessionLocal
 from app.journal import append as journal_append
-from app.models import Session
+from app.models import Experiment, Session
 from app.models.enums import SessionStatus
 from app.tasks.celery_app import celery_app
 
@@ -72,7 +73,7 @@ def loop(self, session_id: str) -> dict:
             created = created.replace(tzinfo=timezone.utc)
         elapsed_s = (datetime.now(timezone.utc) - created).total_seconds()
         if elapsed_s >= session.wall_clock_budget_s:
-            session.status = SessionStatus.done
+            session.status = SessionStatus.complete
             db.commit()
             journal_append(
                 session_id,
@@ -89,7 +90,34 @@ def loop(self, session_id: str) -> dict:
                 "reason": "wall_clock_budget_exhausted",
             }
 
-        # ---- (4) enqueue next iteration via the chain -------------------
+        # ---- (4) max_iterations cap ------------------------------------
+        if session.max_iterations > 0:
+            current_iteration = (
+                db.query(Experiment.iteration)
+                .filter(Experiment.session_id == session_id)
+                .order_by(Experiment.iteration.desc())
+                   .limit(1)
+                   .scalar()
+            ) or 0
+            if current_iteration >= session.max_iterations:
+                session.status = SessionStatus.complete
+                db.commit()
+                journal_append(
+                    session_id,
+                    "session_stopped",
+                    {
+                        "reason": "max_iterations_reached",
+                        "iteration": current_iteration,
+                        "max_iterations": session.max_iterations,
+                    },
+                )
+                return {
+                    "session_id": session_id,
+                    "skip": True,
+                    "reason": "max_iterations_reached",
+                }
+
+        # ---- (5) enqueue next iteration via the chain -------------------
         from app.tasks.apply_edit import apply_edit
         from app.tasks.plan import plan
         from app.tasks.run_experiment import on_chain_error, run_experiment

@@ -63,6 +63,7 @@ def _prune_old_worktrees(db, session: Session, current_iteration: int) -> int:
                 ]
             ),
         )
+        .with_for_update(skip_locked=True)
         .all()
     )
     if not stale:

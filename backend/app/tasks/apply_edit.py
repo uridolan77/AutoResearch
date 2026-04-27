@@ -105,11 +105,23 @@ def _propose_again(db, session: Session, experiment: Experiment, hint: str) -> i
     experiment.diff_text = result.text
     experiment.tokens_used = (experiment.tokens_used or 0) + result.total_tokens
     session.tokens_used = (session.tokens_used or 0) + result.total_tokens
+    # Immediately mark draining if the retry tips the session over budget,
+    # so loop.py sees the correct status on next entry even if this chain
+    # iteration completes before loop runs.
+    if session.tokens_used >= session.token_cap_session:
+        session.status = SessionStatus.draining
     db.commit()
     return result.total_tokens
 
 
-@celery_app.task(name="autoresearch.apply_edit", bind=True)
+@celery_app.task(
+    name="autoresearch.apply_edit",
+    bind=True,
+    autoretry_for=(OSError, ConnectionError),
+    max_retries=3,
+    default_retry_delay=5,
+    retry_backoff=True,
+)
 def apply_edit(self, ctx: ChainContext) -> ChainContext:
     if ctx.get("done"):
         return ctx

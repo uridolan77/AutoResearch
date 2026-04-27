@@ -35,6 +35,7 @@ class Session(Base):
     review_timeout_hours: Mapped[int] = mapped_column(Integer, default=48)
     worktree_prune_window: Mapped[int] = mapped_column(Integer, default=10)
     validation_retry_max: Mapped[int] = mapped_column(Integer, default=3)
+    max_iterations: Mapped[int] = mapped_column(Integer, default=0)
 
     status: Mapped[SessionStatus] = mapped_column(
         Enum(SessionStatus), default=SessionStatus.idle, index=True
