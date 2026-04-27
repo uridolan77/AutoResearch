@@ -5,9 +5,9 @@ human attention would clog the session indefinitely. The session-level
 `review_timeout_hours` (default 48) caps how long a review can sit before
 the platform makes a decision on the human's behalf.
 
-Auto-rejected experiments get a synthetic rejection_comment (v3 loose-end
-fix) so the rejection-feedback context block stays informative — the agent
-understands the human walked away rather than getting silence.
+Auto-rejected experiments get a synthetic rejection_comment so the
+rejection-feedback context block stays informative — the agent understands
+the human walked away rather than getting silence.
 
 Also recovers experiments stuck in `deciding` status (worker-death scenario)
 by rolling them back to `awaiting_review` after DECIDING_STUCK_MINUTES.
@@ -68,9 +68,19 @@ def stale_reviews(self) -> dict:
             exp.rejection_comment = (
                 f"auto-rejected: review timeout ({sess.review_timeout_hours}h)"
             )
+            # Send the task *before* committing. If the broker is unreachable,
+            # we roll back the in-memory change so the row has no decision set
+            # and will be retried on the next Beat tick.
+            try:
+                celery_app.send_task("autoresearch.decide", args=[exp.id])
+            except Exception:
+                logger.warning(
+                    "stale_reviews: broker unavailable for experiment %s; skipping",
+                    exp.id,
+                )
+                db.rollback()
+                continue
             db.commit()
-
-            celery_app.send_task("autoresearch.decide", args=[exp.id])
             swept += 1
 
         # --- recover experiments stuck in `deciding` (worker-death rollback) -

@@ -14,13 +14,11 @@ Responsibilities:
 Cost-control short-circuits set ctx["done"]=True so the chain unwinds
 without raising.
 
-NB: The session-level token budget check is also enforced at the top of
-loop (Days 7-8) so validation-retry burn cannot escape the cap.
+NB: The session-level token budget is also enforced at the top of `loop`.
 """
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 
@@ -30,7 +28,7 @@ from app.journal import append as journal_append
 from app.models import Experiment, Session
 from app.models.enums import ExperimentStatus, SessionStatus
 from app.tasks.celery_app import celery_app
-from app.tasks.chain import passthrough, short_circuit
+from app.tasks.chain import ChainContext, passthrough, short_circuit
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +74,7 @@ def _create_experiment_with_retry(db, session_id: str, *, max_attempts: int = 3)
 
 
 @celery_app.task(name="autoresearch.plan", bind=True)
-def plan(self, session_id: str) -> dict[str, Any]:
+def plan(self, session_id: str) -> ChainContext:
     db = SessionLocal()
     try:
         session = db.get(Session, session_id)

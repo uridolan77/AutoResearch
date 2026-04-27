@@ -30,7 +30,7 @@ from app.journal import append as journal_append
 from app.models import Experiment, Session
 from app.models.enums import ExperimentStatus, SessionStatus
 from app.tasks.celery_app import celery_app
-from app.tasks.chain import passthrough, short_circuit
+from app.tasks.chain import ChainContext, passthrough, short_circuit
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ def _propose_again(db, session: Session, experiment: Experiment, hint: str) -> i
 
 
 @celery_app.task(name="autoresearch.apply_edit", bind=True)
-def apply_edit(self, ctx: dict[str, Any]) -> dict[str, Any]:
+def apply_edit(self, ctx: ChainContext) -> ChainContext:
     if ctx.get("done"):
         return ctx
 

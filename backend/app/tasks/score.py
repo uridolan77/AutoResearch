@@ -13,10 +13,6 @@ review_mode:
 When the chain pauses (status=awaiting_review) the chain TERMINATES here.
 The review endpoint enqueues `decide` as a fresh task — review is a state
 machine, not a blocking call.
-
-NB: the v3 loose-end "synthetic rejection_comment for auto-reject paths" is
-fixed here so the rejection-feedback context block stays informative when
-auto-reject modes fire.
 """
 from __future__ import annotations
 
@@ -34,7 +30,7 @@ from app.models.enums import (
     ReviewMode,
 )
 from app.tasks.celery_app import celery_app
-from app.tasks.chain import passthrough, short_circuit
+from app.tasks.chain import ChainContext, passthrough, short_circuit
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +59,7 @@ def _is_improvement(delta: float, direction: MetricDirection) -> bool:
 
 
 @celery_app.task(name="autoresearch.score", bind=True)
-def score(self, ctx: dict[str, Any]) -> dict[str, Any]:
+def score(self, ctx: ChainContext) -> ChainContext:
     if ctx.get("done"):
         return ctx
 
@@ -167,15 +163,8 @@ def score(self, ctx: dict[str, Any]) -> dict[str, Any]:
 
 
 def _enqueue_decide(experiment_id: str) -> None:
-    """Decide is implemented in Days 7-8; this is the seam.
-
-    For now we send the task by name so the Celery dispatcher will route it
-    once the task is registered. If the task isn't registered yet (Phase 1
-    Days 4-6 only), Celery returns a SendTaskError on send — which we
-    swallow with a log line so the score chain doesn't fail.
-    """
+    """Send the `decide` task for this experiment."""
     try:
         celery_app.send_task("autoresearch.decide", args=[experiment_id])
     except Exception as e:
-        logger.warning("decide not yet registered (Days 7-8); experiment %s queued: %s",
-                       experiment_id, e)
+        logger.warning("_enqueue_decide: failed for experiment %s: %s", experiment_id, e)

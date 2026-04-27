@@ -97,6 +97,5 @@ class OpenAIRouter(BaseLLMRouter):
             input_tokens=usage.prompt_tokens if usage else 0,
             output_tokens=usage.completion_tokens if usage else 0,
             model=cfg.model,
-            cached=False,
         )
 

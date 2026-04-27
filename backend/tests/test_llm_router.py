@@ -83,7 +83,6 @@ class _DummyRouter:
             input_tokens=11,
             output_tokens=22,
             model="dummy-model",
-            cached=False,
         )
 
 

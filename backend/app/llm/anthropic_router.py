@@ -77,6 +77,5 @@ class AnthropicRouter(BaseLLMRouter):
             input_tokens=resp.usage.input_tokens,
             output_tokens=resp.usage.output_tokens,
             model=cfg.model,
-            cached=False,
         )
 

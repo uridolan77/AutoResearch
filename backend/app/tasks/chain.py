@@ -16,8 +16,7 @@ Shape:
         "done_reason": str | None,
     }
 
-The `loop` task (Days 7-8) reads `done` after `score` to decide whether to
-re-enqueue.
+`loop` reads `done` after `score` to decide whether to re-enqueue.
 """
 from __future__ import annotations
 

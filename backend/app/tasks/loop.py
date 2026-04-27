@@ -6,14 +6,13 @@ conditions in one place:
 
     1. session.status not in {running, idle}              -> stop
     2. tokens_used >= token_cap_session                   -> drain + stop
-       (this is the v3 loose-end fix: validation-retry token burn can't
-       escape the cap because plan's per-iter check is not the same as
-       the per-session ceiling)
-    3. otherwise                                          -> enqueue plan
+    3. wall_clock_budget_s elapsed since session start    -> stop
+    4. otherwise                                          -> enqueue plan
 """
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 
 from celery import chain
 
@@ -45,11 +44,10 @@ def loop(self, session_id: str) -> dict:
                 "reason": f"status={session.status.value}",
             }
 
-        # ---- (2) session-level token budget escape (v3 fix) -------------
+        # ---- (2) session-level token budget ceiling --------------------
         # plan.py's per-call check stops a single LLM call from blowing the
         # cap, but validation retries during apply_edit can still burn budget
-        # without ever calling decide (which is normally where draining is
-        # detected). Re-checking here closes the loophole.
+        # without ever calling decide. Re-checking here closes the loophole.
         if session.tokens_used >= session.token_cap_session:
             session.status = SessionStatus.draining
             db.commit()
@@ -68,7 +66,30 @@ def loop(self, session_id: str) -> dict:
                 "reason": "token_cap_session reached",
             }
 
-        # ---- (3) enqueue next iteration via the chain -------------------
+        # ---- (3) wall-clock budget ------------------------------------
+        created = session.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        elapsed_s = (datetime.now(timezone.utc) - created).total_seconds()
+        if elapsed_s >= session.wall_clock_budget_s:
+            session.status = SessionStatus.done
+            db.commit()
+            journal_append(
+                session_id,
+                "session_stopped",
+                {
+                    "reason": "wall_clock_budget_exhausted",
+                    "elapsed_s": round(elapsed_s),
+                    "budget_s": session.wall_clock_budget_s,
+                },
+            )
+            return {
+                "session_id": session_id,
+                "skip": True,
+                "reason": "wall_clock_budget_exhausted",
+            }
+
+        # ---- (4) enqueue next iteration via the chain -------------------
         from app.tasks.apply_edit import apply_edit
         from app.tasks.plan import plan
         from app.tasks.run_experiment import on_chain_error, run_experiment

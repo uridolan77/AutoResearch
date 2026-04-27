@@ -7,7 +7,6 @@ so they survive restarts and can be displayed in the review UI.
 Crash path (link_error): if this task or any downstream chain task raises
 unhandled, on_chain_error marks the experiment failed, journals the reason,
 and re-enqueues the loop so a daemon hiccup doesn't wedge the session.
-This is the v3 "loose end" fix.
 """
 from __future__ import annotations
 
@@ -26,7 +25,7 @@ from app.models import Experiment, Run, Session
 from app.models.enums import ExperimentStatus
 from app.secrets import SecretError, decrypt_refs
 from app.tasks.celery_app import celery_app
-from app.tasks.chain import passthrough, short_circuit
+from app.tasks.chain import ChainContext, passthrough, short_circuit
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ def _run_dir(session_id: str, run_id: str) -> Path:
 
 
 @celery_app.task(name="autoresearch.run_experiment", bind=True)
-def run_experiment(self, ctx: dict[str, Any]) -> dict[str, Any]:
+def run_experiment(self, ctx: ChainContext) -> ChainContext:
     if ctx.get("done"):
         return ctx
 
